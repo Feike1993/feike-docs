@@ -1,0 +1,166 @@
+---
+sidebar_position: 1
+title: GitHub Pages 部署实践
+description: 将本站 Docusaurus 项目部署到 GitHub Pages 的完整过程与踩坑记录
+---
+
+# GitHub Pages 部署实践
+
+本文记录将 **feike-docs**（Docusaurus）部署到 GitHub Pages 的完整过程，包含配置、Actions 自动发布，以及实际遇到的 CI / Git 推送问题。
+
+## 背景与目标
+
+- 仓库：`Feike1993/feike-docs`
+- 部署方式：GitHub Actions 构建产物 → GitHub Pages（非 `gh-pages` 手推分支）
+- 站点地址：[https://feike1993.github.io/feike-docs/](https://feike1993.github.io/feike-docs/)
+
+这是 **Project Pages**：站点挂在用户域下的仓库子路径 `/feike-docs/`，因此 `baseUrl` 必须与路径一致。
+
+## 1. 修正站点配置
+
+在 `docusaurus.config.ts` 中设置：
+
+```ts
+const baseUrl = '/feike-docs/';
+
+const config = {
+  url: 'https://feike1993.github.io',
+  baseUrl,
+  trailingSlash: false,
+  organizationName: 'Feike1993',
+  projectName: 'feike-docs',
+  // ...
+};
+```
+
+要点：
+
+- `url` 是站点根域名（不含仓库名）
+- `baseUrl` 必须以 `/` 开头和结尾，对应仓库名路径
+- `trailingSlash: false` 与 Actions + Pages 更合拍
+
+## 2. 静态资源适配 baseUrl
+
+子路径部署时，写死根路径的资源会 404。
+
+### headTags 中的主题脚本
+
+错误示例：`src: '/js/brand-theme-init.js'`（会请求 `https://feike1993.github.io/js/...`）
+
+正确做法：拼上 `baseUrl`：
+
+```ts
+src: `${baseUrl}js/brand-theme-init.js`
+```
+
+### 页面中的图片
+
+例如首页微信二维码，不要写死 `/img/...`，改用：
+
+```tsx
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
+const wechatQr = useBaseUrl('/img/wechat-qr.jpg');
+// <img src={wechatQr} ... />
+```
+
+## 3. 添加 GitHub Actions 自动部署
+
+新增 `.github/workflows/deploy.yml`，在 `push` 到 `main` 时：
+
+1. Checkout 代码
+2. 用 pnpm 安装依赖并 `pnpm run build`
+3. `actions/upload-pages-artifact` 上传 `build/`
+4. `actions/deploy-pages` 发布到 Pages
+
+权限需要：
+
+- `contents: read`
+- `pages: write`
+- `id-token: write`
+
+另可增加 PR 上的 `test-deploy.yml`，只构建不部署，提前发现构建失败。
+
+本仓库使用 **pnpm**（存在 `pnpm-lock.yaml`），Actions 里应使用 `pnpm/action-setup` + `pnpm install --frozen-lockfile`，而不是盲目 `npm ci`。
+
+## 4. 仓库开启 Pages（网页操作）
+
+代码推上去之后，还要在 GitHub 网页确认：
+
+1. 打开 [仓库 Settings → Pages](https://github.com/Feike1993/feike-docs/settings/pages)
+2. **Build and deployment → Source** 选择 **GitHub Actions**
+3. **不要**选 Deploy from a branch，也**不要**去配置页面上推荐的 Jekyll / Static HTML 模板（仓库已有自定义 `deploy.yml`）
+
+注意：账号级「Add a verified domain」是自定义域名验证，与本次项目站部署无关。
+
+## 5. CI 踩坑：pnpm packages 字段缺失
+
+首次 Actions 构建失败，报错类似：
+
+```text
+ERROR packages field missing or empty
+For help, run: pnpm help store
+```
+
+原因：仓库里有 `pnpm-workspace.yaml`（例如仅含 `allowBuilds`），在 CI 使用的 pnpm 版本下要求显式 `packages` 字段。
+
+修复：
+
+```yaml
+packages:
+  - '.'
+
+allowBuilds:
+  '@swc/core': true
+  core-js: true
+```
+
+修完后重新 push，`Deploy to GitHub Pages` 即可通过。可选将 Actions 的 Node 升到 22，减少 Node 20 弃用告警。
+
+## 6. Git 推送：HTTPS 不稳，改用 SSH
+
+公司网直连 GitHub 时，可能出现：
+
+- `ping` 丢包偏高（ICMP 不完全代表 HTTPS 质量）
+- Cursor Agent 沙箱注入本地代理，导致 `CONNECT tunnel failed, response 502`
+- HTTPS `git push` 偶发超时，而 `curl` 有时仍可用
+
+本站实践：
+
+1. 生成 SSH 密钥并添加到 GitHub
+2. 将远程改为 SSH：
+
+```bash
+git remote set-url origin git@github.com:Feike1993/feike-docs.git
+```
+
+之后 `git push` / `git pull` 走 SSH，通常比公司网下的 HTTPS 更稳。优先在系统终端或 Cursor 普通终端推送，少依赖 Agent 沙箱网络。
+
+## 7. 验证清单
+
+部署成功后建议检查：
+
+- [ ] Actions 中 **Deploy to GitHub Pages** 为绿色
+- [ ] 打开 [https://feike1993.github.io/feike-docs/](https://feike1993.github.io/feike-docs/)
+- [ ] 首页样式 / 品牌主题脚本正常
+- [ ] 文档、博客路由正常（带 `/feike-docs/` 前缀）
+- [ ] 联系区微信二维码图片可显示
+
+## 8. 关于国内访问与 Gitee
+
+曾评估同步到 Gitee 做国内加速。经官网客服确认：**Gitee Pages 功能已下线**，因此不能再走「Gitee 版 Pages」。
+
+若后续需要国内更快访问，可另行评估腾讯云静态托管、Cloudflare Pages 等方案；GitHub 继续作为主仓与当前 Pages 发布渠道即可。
+
+## 相关文件
+
+| 文件 | 作用 |
+|------|------|
+| `docusaurus.config.ts` | `url` / `baseUrl` / Pages 相关配置 |
+| `.github/workflows/deploy.yml` | 构建并部署到 GitHub Pages |
+| `.github/workflows/test-deploy.yml` | PR 构建检查 |
+| `pnpm-workspace.yaml` | pnpm workspace（需含 `packages`） |
+
+## 小结
+
+Project Pages 的关键是：**`baseUrl` 对齐子路径 + Actions 产物部署 + 仓库 Source 选 GitHub Actions**。其余多半是路径写死、pnpm workspace 配置、以及公司网 Git 推送稳定性问题。按本文清单走一遍，一般即可稳定发布。
