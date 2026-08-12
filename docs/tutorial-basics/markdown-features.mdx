@@ -2,64 +2,64 @@
 sidebar_position: 4
 ---
 
-# Markdown Features
+# Markdown 功能
 
-Docusaurus supports **[Markdown](https://daringfireball.net/projects/markdown/syntax)** and a few **additional features**.
+Docusaurus 支持 **[Markdown](https://daringfireball.net/projects/markdown/syntax)**，并提供一些 **额外能力**。
 
 ## Front Matter
 
-Markdown documents have metadata at the top called [Front Matter](https://jekyllrb.com/docs/front-matter/):
+Markdown 文档顶部可以包含称为 [Front Matter](https://jekyllrb.com/docs/front-matter/) 的元数据：
 
 ```text title="my-doc.md"
 // highlight-start
 ---
 id: my-doc-id
-title: My document title
-description: My document description
+title: 我的文档标题
+description: 我的文档描述
 slug: /my-custom-url
 ---
 // highlight-end
 
-Markdown content
+Markdown 正文内容
 ```
 
-## Headings {/* #my-heading-id */}
+## 标题 {/* #my-heading-id */}
 
-Markdown headings are supported using the standard “#” syntax and are automatically added to the table of contents. The number of `#` corresponds to the heading level.
+Markdown 标题使用标准的 “#” 语法，并会自动加入目录。`#` 的数量对应标题级别。
 
 ```md
-## Headings
+## 标题
 
-My text
+我的正文
 ```
 
-### Heading Ids {/* #my-custom-id */}
+### 标题 ID {/* #my-custom-id */}
 
-Add `{/* #my-custom-id */}` after the heading text to assign it an explicit anchor id, used for linking.
+在标题文本后添加 `{/* #my-custom-id */}`，可为标题指定显式锚点 id，便于链接跳转。
 
 ```md
-### Heading Ids {/_ #my-custom-id _/}
+### 标题 ID {/_ #my-custom-id _/}
 ```
 
-## Links
+## 链接
 
-Regular Markdown links are supported, using url paths or relative file paths.
+支持常规 Markdown 链接，可使用 URL 路径或相对文件路径。
 
 ```md
-Let's see how to [Create a page](/create-a-page).
+一起来看看如何 [创建页面](/create-a-page)。
 ```
 
 ```md
-Let's see how to [Create a page](./create-a-page.mdx).
+一起来看看如何 [创建页面](./create-a-page.mdx)。
 ```
 
-**Result:** Let's see how to [Create a page](./create-a-page.mdx).
+**效果：** 一起来看看如何 [创建页面](./create-a-page.mdx)。
 
-## Images
+## 图片
 
-Regular Markdown images are supported.
+支持常规 Markdown 图片语法。
 
-You can use absolute paths to reference images in the static directory (`static/img/docusaurus.png`):
+可以使用绝对路径引用 `static` 目录中的图片（例如 `static/img/docusaurus.png`）：
 
 ```md
 ![Docusaurus logo](/img/docusaurus.png)
@@ -67,15 +67,15 @@ You can use absolute paths to reference images in the static directory (`static/
 
 ![Docusaurus logo](/img/docusaurus.png)
 
-You can reference images relative to the current file as well. This is particularly useful to colocate images close to the Markdown files using them:
+也可以相对当前文件引用图片。这很适合把图片和对应的 Markdown 文件放在一起：
 
 ```md
 ![Docusaurus logo](./img/docusaurus.png)
 ```
 
-## Code Blocks
+## 代码块
 
-Markdown code blocks are supported with Syntax highlighting.
+Markdown 代码块支持语法高亮。
 
 ````md
 ```jsx title="src/components/HelloDocusaurus.js"
@@ -91,39 +91,39 @@ function HelloDocusaurus() {
 }
 ```
 
-## Admonitions
+## 提示框（Admonitions）
 
-Docusaurus has a special syntax to create admonitions and callouts:
+Docusaurus 提供特殊语法来创建提示框和标注：
 
 ```md
-:::tip[My tip]
+:::tip[我的提示]
 
-Use this awesome feature option
+试试这个很棒的功能选项
 
 :::
 
-:::danger[Take care]
+:::danger[注意]
 
-This action is dangerous
+此操作比较危险
 
 :::
 ```
 
-:::tip[My tip]
+:::tip[我的提示]
 
-Use this awesome feature option
-
-:::
-
-:::danger[Take care]
-
-This action is dangerous
+试试这个很棒的功能选项
 
 :::
 
-## MDX and React Components
+:::danger[注意]
 
-[MDX](https://mdxjs.com/) can make your documentation more **interactive** and allows using any **React components inside Markdown**:
+此操作比较危险
+
+:::
+
+## MDX 与 React 组件
+
+[MDX](https://mdxjs.com/) 可以让文档更 **交互化**，并允许在 Markdown 中使用任意 **React 组件**：
 
 ```jsx
 export const Highlight = ({children, color}) => (
@@ -136,15 +136,15 @@ export const Highlight = ({children, color}) => (
       cursor: 'pointer',
     }}
     onClick={() => {
-      alert(`You clicked the color ${color} with label ${children}`)
+      alert(`你点击了颜色 ${color}，标签为 ${children}`)
     }}>
     {children}
   </span>
 );
 
-This is <Highlight color="#25c2a0">Docusaurus green</Highlight> !
+这是 <Highlight color="#25c2a0">Docusaurus 绿色</Highlight>！
 
-This is <Highlight color="#1877F2">Facebook blue</Highlight> !
+这是 <Highlight color="#1877F2">Facebook 蓝色</Highlight>！
 ```
 
 export const Highlight = ({children, color}) => (
@@ -157,12 +157,12 @@ export const Highlight = ({children, color}) => (
       cursor: 'pointer',
     }}
     onClick={() => {
-      alert(`You clicked the color ${color} with label ${children}`);
+      alert(`你点击了颜色 ${color}，标签为 ${children}`);
     }}>
     {children}
   </span>
 );
 
-This is <Highlight color="#25c2a0">Docusaurus green</Highlight> !
+这是 <Highlight color="#25c2a0">Docusaurus 绿色</Highlight>！
 
-This is <Highlight color="#1877F2">Facebook blue</Highlight> !
+这是 <Highlight color="#1877F2">Facebook 蓝色</Highlight>！

@@ -1,7 +1,8 @@
 {
-  "label": "Tutorial - Extras",
+  "label": "教程 - 进阶",
   "position": 3,
   "link": {
-    "type": "generated-index"
+    "type": "generated-index",
+    "description": "了解文档版本管理与站点国际化等进阶能力。"
   }
 }
