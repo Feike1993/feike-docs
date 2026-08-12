@@ -86,7 +86,7 @@ const config: Config = {
       title: 'Feike',
       logo: {
         alt: '飞客 Logo',
-        src: 'img/logo.svg',
+        src: 'img/logo.png',
       },
       items: [
         {
