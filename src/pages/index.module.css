@@ -1,23 +1,85 @@
-/**
- * CSS files with the .module.css suffix will be treated as CSS modules
- * and scoped locally.
- */
-
 .heroBanner {
-  padding: 4rem 0;
-  text-align: center;
   position: relative;
+  padding: 5rem 0 4.5rem;
   overflow: hidden;
+  color: var(--brand-cream-light, #faf6ee);
+  text-align: center;
+  background: var(--ifm-hero-background-color, var(--brand-navbar, #06805f));
 }
 
-@media screen and (max-width: 996px) {
-  .heroBanner {
-    padding: 2rem;
-  }
+.heroBanner::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: '';
+  background-image:
+    linear-gradient(rgb(255 255 255 / 5%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 5%) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 35%, transparent 75%);
+}
+
+.heroBanner::after {
+  position: absolute;
+  top: -10%;
+  right: -5%;
+  width: min(42vw, 28rem);
+  height: min(42vw, 28rem);
+  pointer-events: none;
+  content: '';
+  background: radial-gradient(
+    circle at center,
+    rgb(255 210 63 / 18%) 0%,
+    transparent 68%
+  );
+}
+
+.heroInner {
+  position: relative;
+  z-index: 1;
+}
+
+.heroBanner :global(.hero__title) {
+  margin-bottom: 0.75rem;
+  color: #ffffff;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.heroBanner :global(.hero__subtitle) {
+  max-width: 36rem;
+  margin: 0 auto 1.75rem;
+  color: rgb(250 246 238 / 88%);
+  font-size: 1.15rem;
 }
 
 .buttons {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   align-items: center;
   justify-content: center;
+}
+
+.cta {
+  color: var(--brand-ink, #0f1a14) !important;
+  background: var(--brand-accent, #ffd23f) !important;
+  border: none !important;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.cta:hover {
+  color: var(--brand-ink, #0f1a14) !important;
+  background: var(--brand-accent-bright, #ffe066) !important;
+}
+
+.featuresSection {
+  padding: 3.5rem 0 4rem;
+  background: var(--ifm-background-color);
+}
+
+@media screen and (max-width: 996px) {
+  .heroBanner {
+    padding: 2.5rem 1rem 2.25rem;
+  }
 }
