@@ -1,19 +1,19 @@
 facebook:
   label: Facebook
   permalink: /facebook
-  description: Facebook tag description
+  description: Facebook 相关文章
 
 hello:
-  label: Hello
+  label: 你好
   permalink: /hello
-  description: Hello tag description
+  description: 入门与欢迎相关文章
 
 docusaurus:
   label: Docusaurus
   permalink: /docusaurus
-  description: Docusaurus tag description
+  description: Docusaurus 相关文章
 
 hola:
   label: Hola
   permalink: /hola
-  description: Hola tag description
+  description: Hola 标签相关文章

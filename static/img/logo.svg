@@ -11,7 +11,7 @@
   <!-- Title bar separator -->
   <line x1="28" y1="64" x2="172" y2="64" stroke="#334155" stroke-width="2"/>
 
-  <!-- Code brackets </> -->
+  <!-- Code brackets </> — centered in the content pane below the title bar -->
   <path d="M78 108 L58 128 L78 148" stroke="#2DD4BF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M100 96 L114 160" stroke="#2DD4BF" stroke-width="9" stroke-linecap="round"/>
   <path d="M122 108 L142 128 L122 148" stroke="#2DD4BF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
