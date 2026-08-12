@@ -1,41 +1,29 @@
 import type {ReactNode} from 'react';
-import clsx from 'clsx';
-import Link from '@docusaurus/Link';
-import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
-import HomepageFeatures from '@site/src/components/HomepageFeatures';
-import Heading from '@theme/Heading';
-
-import styles from './index.module.css';
-
-function HomepageHeader() {
-  const {siteConfig} = useDocusaurusContext();
-  return (
-    <header className={styles.heroBanner}>
-      <div className={clsx('container', styles.heroInner)}>
-        <Heading as="h1" className="hero__title">
-          {siteConfig.title}
-        </Heading>
-        <p className="hero__subtitle">{siteConfig.tagline}</p>
-        <div className={styles.buttons}>
-          <Link className={clsx('button button--lg', styles.cta)} to="/docs/intro">
-            开始阅读教程
-          </Link>
-        </div>
-      </div>
-    </header>
-  );
-}
+import {
+  Hero,
+  Stats,
+  Strengths,
+  Skills,
+  Projects,
+  Experience,
+  Contact,
+} from '@site/src/components/Home';
+import {profile} from '@site/src/data/profile';
 
 export default function Home(): ReactNode {
-  const {siteConfig} = useDocusaurusContext();
   return (
     <Layout
-      title={`来自 ${siteConfig.title} 的问候`}
-      description="飞客文档站点 — 持续学习，拥抱变化。">
-      <HomepageHeader />
-      <main className={styles.featuresSection}>
-        <HomepageFeatures />
+      title={`${profile.brand} · ${profile.title}`}
+      description={`${profile.brand} — ${profile.tagline}`}>
+      <Hero />
+      <main>
+        <Stats />
+        <Strengths />
+        <Skills />
+        <Projects />
+        <Experience />
+        <Contact />
       </main>
     </Layout>
   );
