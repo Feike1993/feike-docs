@@ -95,6 +95,12 @@ const config: Config = {
           position: 'left',
           label: '教程',
         },
+        {
+          type: 'docSidebar',
+          sidebarId: 'techStackSidebar',
+          position: 'left',
+          label: '技术栈',
+        },
         {to: '/blog', label: '博客', position: 'left'},
         {
           type: 'custom-brandThemeSwitcher',
@@ -116,6 +122,10 @@ const config: Config = {
             {
               label: '教程',
               to: '/docs/intro',
+            },
+            {
+              label: '技术栈',
+              to: '/docs/tech-stack/deployment/github-pages',
             },
           ],
         },
