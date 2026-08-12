@@ -17,8 +17,8 @@
   color: var(--ifm-navbar-link-color);
   cursor: pointer;
   list-style: none;
-  background: rgb(245 239 228 / 6%);
-  border: 1px solid rgb(245 239 228 / 22%);
+  background: rgb(255 255 255 / 6%);
+  border: 1px solid rgb(255 255 255 / 22%);
   border-radius: 0.25rem;
   transition:
     border-color 0.15s ease,
@@ -32,8 +32,8 @@
 
 .summary:hover {
   color: var(--ifm-navbar-link-hover-color);
-  background: rgb(245 239 228 / 10%);
-  border-color: rgb(245 239 228 / 45%);
+  background: rgb(255 255 255 / 10%);
+  border-color: rgb(255 255 255 / 45%);
 }
 
 .summary:focus-visible {
@@ -56,7 +56,7 @@
   padding: 0.375rem;
   overflow-y: auto;
   background: var(--brand-primary-darker, var(--ifm-background-surface-color));
-  border: 1px solid rgb(245 239 228 / 14%);
+  border: 1px solid rgb(255 255 255 / 14%);
   border-radius: 0.5rem;
   box-shadow: 0 1rem 2.5rem rgb(0 0 0 / 32%);
 }
@@ -80,12 +80,12 @@
 
 .option:hover,
 .option:focus-visible {
-  background: rgb(245 239 228 / 10%);
+  background: rgb(255 255 255 / 10%);
   outline: none;
 }
 
 .optionActive {
-  background: rgb(245 239 228 / 12%);
+  background: rgb(255 255 255 / 12%);
 }
 
 .swatches {
