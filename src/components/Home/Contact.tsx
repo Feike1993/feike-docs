@@ -1,11 +1,13 @@
 import type {ReactNode} from 'react';
 import clsx from 'clsx';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 import Heading from '@theme/Heading';
 import {useReveal} from './useReveal';
 import styles from './styles.module.css';
 
 export default function Contact(): ReactNode {
   const [ref, visible] = useReveal<HTMLElement>();
+  const wechatQr = useBaseUrl('/img/wechat-qr.jpg');
 
   return (
     <section
@@ -19,7 +21,7 @@ export default function Contact(): ReactNode {
         <p className={styles.sectionLead}>扫码添加微信</p>
         <img
           className={styles.wechatQr}
-          src="/img/wechat-qr.jpg"
+          src={wechatQr}
           alt="微信二维码"
           width={280}
           height={416}

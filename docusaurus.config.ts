@@ -4,6 +4,8 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
+const baseUrl = '/feike-docs/';
+
 const config: Config = {
   title: '飞客',
   tagline: '持续学习，拥抱变化。',
@@ -14,14 +16,12 @@ const config: Config = {
     v4: true, // Improve compatibility with the upcoming Docusaurus v4
   },
 
-  // Set the production url of your site here
-  url: 'https://your-docusaurus-site.example.com',
-  // Set the /<baseUrl>/ pathname under which your site is served
-  // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/',
+  // GitHub Pages project site
+  url: 'https://feike1993.github.io',
+  baseUrl,
+  trailingSlash: false,
 
   // GitHub pages deployment config.
-  // If you aren't using GitHub pages, you don't need these.
   organizationName: 'Feike1993',
   projectName: 'feike-docs',
 
@@ -40,7 +40,7 @@ const config: Config = {
     {
       tagName: 'script',
       attributes: {
-        src: '/js/brand-theme-init.js',
+        src: `${baseUrl}js/brand-theme-init.js`,
       },
     },
   ],
