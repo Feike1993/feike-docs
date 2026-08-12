@@ -35,6 +35,16 @@ const config: Config = {
     locales: ['zh-Hans'],
   },
 
+  // Apply saved brand theme before paint to avoid color flash.
+  headTags: [
+    {
+      tagName: 'script',
+      attributes: {
+        src: '/js/brand-theme-init.js',
+      },
+    },
+  ],
+
   presets: [
     [
       'classic',
@@ -62,7 +72,7 @@ const config: Config = {
           onUntruncatedBlogPosts: 'warn',
         },
         theme: {
-          customCss: './src/css/custom.css',
+          customCss: ['./src/css/custom.css', './src/css/brand-themes.css'],
         },
       } satisfies Preset.Options,
     ],
@@ -88,6 +98,10 @@ const config: Config = {
           label: '教程',
         },
         {to: '/blog', label: '博客', position: 'left'},
+        {
+          type: 'custom-brandThemeSwitcher',
+          position: 'right',
+        },
         {
           href: 'https://github.com/facebook/docusaurus',
           label: 'GitHub',

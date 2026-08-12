@@ -11,17 +11,15 @@ import styles from './index.module.css';
 function HomepageHeader() {
   const {siteConfig} = useDocusaurusContext();
   return (
-    <header className={clsx('hero hero--primary', styles.heroBanner)}>
-      <div className="container">
+    <header className={styles.heroBanner}>
+      <div className={clsx('container', styles.heroInner)}>
         <Heading as="h1" className="hero__title">
           {siteConfig.title}
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <div className={styles.buttons}>
-          <Link
-            className="button button--secondary button--lg"
-            to="/docs/intro">
-            Docusaurus 教程 - 5 分钟 ⏱️
+          <Link className={clsx('button button--lg', styles.cta)} to="/docs/intro">
+            开始阅读教程
           </Link>
         </div>
       </div>
@@ -36,7 +34,7 @@ export default function Home(): ReactNode {
       title={`来自 ${siteConfig.title} 的问候`}
       description="飞客文档站点 — 持续学习，拥抱变化。">
       <HomepageHeader />
-      <main>
+      <main className={styles.featuresSection}>
         <HomepageFeatures />
       </main>
     </Layout>
