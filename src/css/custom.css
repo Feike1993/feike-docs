@@ -13,9 +13,9 @@
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
 
-/* Doris-like colored navbar chrome */
+/* Colored navbar chrome */
 .navbar {
-  border-bottom: 1px solid rgb(245 239 228 / 8%);
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
 }
 
 .navbar__title,
@@ -34,10 +34,10 @@
 
 .navbar .clean-btn:hover {
   color: var(--ifm-navbar-link-hover-color);
-  background: rgb(245 239 228 / 10%);
+  background: rgb(255 255 255 / 10%);
 }
 
-/* Docs/blog content sits on cream surface */
+/* Docs/blog content sits on theme surface */
 main .container {
   --ifm-container-background: transparent;
 }

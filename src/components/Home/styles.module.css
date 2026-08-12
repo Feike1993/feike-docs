@@ -3,7 +3,7 @@
   position: relative;
   padding: 5.5rem 0 4.75rem;
   overflow: hidden;
-  color: var(--brand-cream-light, #faf6ee);
+  color: var(--brand-cream-light, #f7faf9);
   text-align: center;
   background: var(--ifm-hero-background-color, var(--brand-navbar, #06805f));
 }
@@ -96,6 +96,15 @@
 }
 
 /* —— Sections —— */
+.homeMain {
+  background: var(--ifm-background-color);
+  background-image: radial-gradient(
+    ellipse 90% 40% at 50% 0%,
+    color-mix(in srgb, var(--ifm-color-primary) 8%, transparent),
+    transparent 70%
+  );
+}
+
 .section {
   padding: 3.75rem 0;
   opacity: 0;
@@ -111,7 +120,7 @@
 }
 
 .altSection {
-  background: var(--ifm-background-surface-color);
+  background: color-mix(in srgb, var(--ifm-color-primary) 5%, var(--brand-paper, #ffffff));
 }
 
 .sectionTitle {
@@ -130,7 +139,8 @@
 /* —— Stats —— */
 .statsSection {
   padding: 2.5rem 0;
-  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  background: color-mix(in srgb, var(--ifm-color-primary) 6%, var(--ifm-background-color));
+  border-bottom: 1px solid color-mix(in srgb, var(--ifm-color-primary) 14%, transparent);
 }
 
 .statsGrid {
@@ -403,7 +413,7 @@
 /* —— Contact —— */
 .contactSection {
   padding-bottom: 4.5rem;
-  border-top: 1px solid var(--ifm-color-emphasis-200);
+  border-top: 1px solid color-mix(in srgb, var(--ifm-color-primary) 14%, transparent);
 }
 
 .contactInner {

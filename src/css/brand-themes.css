@@ -4,7 +4,7 @@
  *
  * Each theme sets:
  * - Infima primary scale (links, buttons)
- * - Navbar / page surface colors (Doris-style colored nav + cream body)
+ * - Navbar / page surface colors (colored nav + cool near-white body)
  */
 
 :root,
@@ -15,9 +15,9 @@
   --brand-primary-darkest: #033a2c;
   --brand-accent: #ffd23f;
   --brand-accent-bright: #ffe066;
-  --brand-cream: #f5efe4;
-  --brand-cream-light: #faf6ee;
-  --brand-paper: #fffcf5;
+  --brand-cream: #f3f8f6;
+  --brand-cream-light: #f7faf9;
+  --brand-paper: #ffffff;
   --brand-ink: #0f1a14;
   --brand-navbar: var(--brand-primary-dark);
 
@@ -35,7 +35,7 @@
   --ifm-navbar-background-color: var(--brand-navbar);
   --ifm-navbar-link-color: var(--brand-cream-light);
   --ifm-navbar-link-hover-color: #ffffff;
-  --ifm-navbar-shadow: 0 1px 0 rgb(245 239 228 / 8%);
+  --ifm-navbar-shadow: 0 1px 0 rgb(255 255 255 / 10%);
   --ifm-hero-background-color: var(--brand-navbar);
   --ifm-footer-background-color: var(--brand-primary-darker);
   --ifm-footer-color: var(--brand-cream-light);
@@ -43,9 +43,9 @@
   --ifm-footer-title-color: #ffffff;
   --ifm-card-background-color: var(--brand-paper);
   --ifm-hover-overlay: rgb(17 166 121 / 8%);
-  --ifm-color-emphasis-100: #f7fffb;
-  --ifm-color-emphasis-200: #eef8f3;
-  --ifm-color-emphasis-300: #d9eee8;
+  --ifm-color-emphasis-100: #eef6f3;
+  --ifm-color-emphasis-200: #e2efe9;
+  --ifm-color-emphasis-300: #cfe3db;
   --ifm-toc-border-color: var(--ifm-color-emphasis-300);
   --docusaurus-highlighted-code-line-bg: rgb(17 166 121 / 10%);
 }
@@ -53,10 +53,10 @@
 html[data-theme='dark'][data-brand-theme='feike'] {
   --brand-accent: #ffd23f;
   --brand-accent-bright: #ffe066;
-  --brand-cream: #10231c;
-  --brand-cream-light: #163328;
-  --brand-paper: #1a3a2e;
-  --brand-ink: #f5efe4;
+  --brand-cream: #0e1c17;
+  --brand-cream-light: #152821;
+  --brand-paper: #163028;
+  --brand-ink: #eef6f3;
   --brand-navbar: #054c39;
 
   --ifm-color-primary: #2ddfa8;
@@ -68,7 +68,7 @@ html[data-theme='dark'][data-brand-theme='feike'] {
   --ifm-color-primary-lightest: #99eee1;
 
   --ifm-font-color-base: var(--brand-ink);
-  --ifm-background-color: #0b1813;
+  --ifm-background-color: #0a1511;
   --ifm-background-surface-color: var(--brand-paper);
   --ifm-navbar-background-color: var(--brand-navbar);
   --ifm-navbar-link-color: var(--brand-cream-light);
@@ -76,9 +76,9 @@ html[data-theme='dark'][data-brand-theme='feike'] {
   --ifm-hero-background-color: var(--brand-navbar);
   --ifm-footer-background-color: #033a2c;
   --ifm-card-background-color: var(--brand-paper);
-  --ifm-color-emphasis-100: #13261e;
-  --ifm-color-emphasis-200: #1a3328;
-  --ifm-color-emphasis-300: #254536;
+  --ifm-color-emphasis-100: #12241d;
+  --ifm-color-emphasis-200: #18302a;
+  --ifm-color-emphasis-300: #234239;
   --docusaurus-highlighted-code-line-bg: rgb(45 223 168 / 15%);
 }
 
@@ -88,10 +88,10 @@ html[data-theme='dark'][data-brand-theme='feike'] {
   --brand-primary-darker: #4e187b;
   --brand-accent: #f9d308;
   --brand-accent-bright: #ffe45c;
-  --brand-cream: #f8f1e8;
-  --brand-cream-light: #fff9f0;
-  --brand-paper: #fffdf8;
-  --brand-ink: #24102f;
+  --brand-cream: #f6f3fa;
+  --brand-cream-light: #faf8fc;
+  --brand-paper: #ffffff;
+  --brand-ink: #1f1229;
   --brand-navbar: var(--brand-primary-dark);
 
   --ifm-color-primary: #7b2cbf;
@@ -108,13 +108,16 @@ html[data-theme='dark'][data-brand-theme='feike'] {
   --ifm-navbar-background-color: var(--brand-navbar);
   --ifm-navbar-link-color: var(--brand-cream-light);
   --ifm-navbar-link-hover-color: #ffffff;
-  --ifm-navbar-shadow: 0 1px 0 rgb(245 239 228 / 8%);
+  --ifm-navbar-shadow: 0 1px 0 rgb(255 255 255 / 10%);
   --ifm-hero-background-color: var(--brand-navbar);
   --ifm-footer-background-color: var(--brand-primary-darker);
   --ifm-footer-color: var(--brand-cream-light);
   --ifm-footer-link-color: var(--brand-cream-light);
   --ifm-footer-title-color: #ffffff;
   --ifm-card-background-color: var(--brand-paper);
+  --ifm-color-emphasis-100: #f1ecf7;
+  --ifm-color-emphasis-200: #e7dff0;
+  --ifm-color-emphasis-300: #d5c8e4;
 }
 
 html[data-theme='dark'][data-brand-theme='golden'] {
@@ -127,13 +130,16 @@ html[data-theme='dark'][data-brand-theme='golden'] {
   --ifm-color-primary-light: #d8b4fe;
   --ifm-color-primary-lighter: #e9d5ff;
   --ifm-color-primary-lightest: #f3e8ff;
-  --ifm-background-color: #14081c;
-  --ifm-background-surface-color: #24102f;
+  --ifm-background-color: #12081a;
+  --ifm-background-surface-color: #1f1230;
   --ifm-navbar-background-color: var(--brand-navbar);
-  --ifm-navbar-link-color: #fff9f0;
+  --ifm-navbar-link-color: #faf8fc;
   --ifm-hero-background-color: var(--brand-navbar);
-  --ifm-footer-background-color: #24102f;
-  --ifm-font-color-base: #f8f1e8;
+  --ifm-footer-background-color: #1f1230;
+  --ifm-font-color-base: #f3eef8;
+  --ifm-color-emphasis-100: #1a1024;
+  --ifm-color-emphasis-200: #251733;
+  --ifm-color-emphasis-300: #342246;
 }
 
 [data-brand-theme='cyan'] {
@@ -142,8 +148,8 @@ html[data-theme='dark'][data-brand-theme='golden'] {
   --brand-primary-darker: #19191f;
   --brand-accent: #00d4ff;
   --brand-accent-bright: #5ce6ff;
-  --brand-cream: #f1f4f5;
-  --brand-cream-light: #f8fafb;
+  --brand-cream: #f2f6f8;
+  --brand-cream-light: #f7fafb;
   --brand-paper: #ffffff;
   --brand-ink: #15151a;
   --brand-navbar: var(--brand-primary-dark);
@@ -162,13 +168,16 @@ html[data-theme='dark'][data-brand-theme='golden'] {
   --ifm-navbar-background-color: var(--brand-navbar);
   --ifm-navbar-link-color: var(--brand-cream-light);
   --ifm-navbar-link-hover-color: #ffffff;
-  --ifm-navbar-shadow: 0 1px 0 rgb(245 239 228 / 8%);
+  --ifm-navbar-shadow: 0 1px 0 rgb(255 255 255 / 10%);
   --ifm-hero-background-color: var(--brand-navbar);
   --ifm-footer-background-color: var(--brand-primary-darker);
   --ifm-footer-color: var(--brand-cream-light);
   --ifm-footer-link-color: var(--brand-cream-light);
   --ifm-footer-title-color: #ffffff;
   --ifm-card-background-color: var(--brand-paper);
+  --ifm-color-emphasis-100: #eaf3f6;
+  --ifm-color-emphasis-200: #ddecef;
+  --ifm-color-emphasis-300: #c7dde3;
 }
 
 html[data-theme='dark'][data-brand-theme='cyan'] {
@@ -181,13 +190,16 @@ html[data-theme='dark'][data-brand-theme='cyan'] {
   --ifm-color-primary-light: #67e8f9;
   --ifm-color-primary-lighter: #a5f3fc;
   --ifm-color-primary-lightest: #cffafe;
-  --ifm-background-color: #0c0c10;
-  --ifm-background-surface-color: #19191f;
+  --ifm-background-color: #0b0d10;
+  --ifm-background-surface-color: #161a1f;
   --ifm-navbar-background-color: var(--brand-navbar);
-  --ifm-navbar-link-color: #f8fafb;
+  --ifm-navbar-link-color: #f7fafb;
   --ifm-hero-background-color: var(--brand-navbar);
   --ifm-footer-background-color: #111115;
-  --ifm-font-color-base: #f1f4f5;
+  --ifm-font-color-base: #eef4f6;
+  --ifm-color-emphasis-100: #12161a;
+  --ifm-color-emphasis-200: #1b2228;
+  --ifm-color-emphasis-300: #273038;
 }
 
 [data-brand-theme='lava'] {
@@ -196,9 +208,9 @@ html[data-theme='dark'][data-brand-theme='cyan'] {
   --brand-primary-darker: #0a0a0a;
   --brand-accent: #ff4500;
   --brand-accent-bright: #ff7438;
-  --brand-cream: #f6f1ec;
-  --brand-cream-light: #fcf8f4;
-  --brand-paper: #fffdfb;
+  --brand-cream: #f7f4f4;
+  --brand-cream-light: #faf8f8;
+  --brand-paper: #ffffff;
   --brand-ink: #1a1010;
   --brand-navbar: var(--brand-primary-dark);
 
@@ -216,13 +228,16 @@ html[data-theme='dark'][data-brand-theme='cyan'] {
   --ifm-navbar-background-color: var(--brand-navbar);
   --ifm-navbar-link-color: var(--brand-cream-light);
   --ifm-navbar-link-hover-color: #ffffff;
-  --ifm-navbar-shadow: 0 1px 0 rgb(245 239 228 / 8%);
+  --ifm-navbar-shadow: 0 1px 0 rgb(255 255 255 / 10%);
   --ifm-hero-background-color: var(--brand-navbar);
   --ifm-footer-background-color: var(--brand-primary-darker);
   --ifm-footer-color: var(--brand-cream-light);
   --ifm-footer-link-color: var(--brand-cream-light);
   --ifm-footer-title-color: #ffffff;
   --ifm-card-background-color: var(--brand-paper);
+  --ifm-color-emphasis-100: #f3ecee;
+  --ifm-color-emphasis-200: #eadfe2;
+  --ifm-color-emphasis-300: #dcc9ce;
 }
 
 html[data-theme='dark'][data-brand-theme='lava'] {
@@ -236,12 +251,15 @@ html[data-theme='dark'][data-brand-theme='lava'] {
   --ifm-color-primary-lighter: #fecdd3;
   --ifm-color-primary-lightest: #ffe4e6;
   --ifm-background-color: #0a0a0a;
-  --ifm-background-surface-color: #171717;
+  --ifm-background-surface-color: #161616;
   --ifm-navbar-background-color: var(--brand-navbar);
-  --ifm-navbar-link-color: #fcf8f4;
+  --ifm-navbar-link-color: #faf8f8;
   --ifm-hero-background-color: var(--brand-navbar);
   --ifm-footer-background-color: #000000;
-  --ifm-font-color-base: #f6f1ec;
+  --ifm-font-color-base: #f4f0f0;
+  --ifm-color-emphasis-100: #141414;
+  --ifm-color-emphasis-200: #1f1f1f;
+  --ifm-color-emphasis-300: #2c2c2c;
 }
 
 [data-brand-theme='victory'] {
@@ -250,9 +268,9 @@ html[data-theme='dark'][data-brand-theme='lava'] {
   --brand-primary-darker: #003f9e;
   --brand-accent: #ffd300;
   --brand-accent-bright: #ffe14d;
-  --brand-cream: #f7f3e8;
-  --brand-cream-light: #fffbf0;
-  --brand-paper: #fffdf6;
+  --brand-cream: #f3f6fb;
+  --brand-cream-light: #f7f9fc;
+  --brand-paper: #ffffff;
   --brand-ink: #0b1a33;
   --brand-navbar: var(--brand-primary-dark);
 
@@ -270,13 +288,16 @@ html[data-theme='dark'][data-brand-theme='lava'] {
   --ifm-navbar-background-color: var(--brand-navbar);
   --ifm-navbar-link-color: var(--brand-cream-light);
   --ifm-navbar-link-hover-color: #ffffff;
-  --ifm-navbar-shadow: 0 1px 0 rgb(245 239 228 / 8%);
+  --ifm-navbar-shadow: 0 1px 0 rgb(255 255 255 / 10%);
   --ifm-hero-background-color: var(--brand-navbar);
   --ifm-footer-background-color: var(--brand-primary-darker);
   --ifm-footer-color: var(--brand-cream-light);
   --ifm-footer-link-color: var(--brand-cream-light);
   --ifm-footer-title-color: #ffffff;
   --ifm-card-background-color: var(--brand-paper);
+  --ifm-color-emphasis-100: #eaf0f8;
+  --ifm-color-emphasis-200: #dce6f2;
+  --ifm-color-emphasis-300: #c5d4e8;
 }
 
 html[data-theme='dark'][data-brand-theme='victory'] {
@@ -289,13 +310,16 @@ html[data-theme='dark'][data-brand-theme='victory'] {
   --ifm-color-primary-light: #93c5fd;
   --ifm-color-primary-lighter: #bfdbfe;
   --ifm-color-primary-lightest: #dbeafe;
-  --ifm-background-color: #071224;
-  --ifm-background-surface-color: #0f1f3d;
+  --ifm-background-color: #06101f;
+  --ifm-background-surface-color: #0d1a30;
   --ifm-navbar-background-color: var(--brand-navbar);
-  --ifm-navbar-link-color: #fffbf0;
+  --ifm-navbar-link-color: #f7f9fc;
   --ifm-hero-background-color: var(--brand-navbar);
   --ifm-footer-background-color: #002b70;
-  --ifm-font-color-base: #f7f3e8;
+  --ifm-font-color-base: #eef3f9;
+  --ifm-color-emphasis-100: #0c1728;
+  --ifm-color-emphasis-200: #142338;
+  --ifm-color-emphasis-300: #1e314a;
 }
 
 [data-brand-theme='lilac'] {
@@ -304,10 +328,10 @@ html[data-theme='dark'][data-brand-theme='victory'] {
   --brand-primary-darker: #49316d;
   --brand-accent: #d3d3d3;
   --brand-accent-bright: #ebebeb;
-  --brand-cream: #f6f2fa;
-  --brand-cream-light: #fbf8ff;
-  --brand-paper: #fffcff;
-  --brand-ink: #221833;
+  --brand-cream: #f5f3f9;
+  --brand-cream-light: #f9f8fc;
+  --brand-paper: #ffffff;
+  --brand-ink: #1e1630;
   --brand-navbar: var(--brand-primary-dark);
 
   --ifm-color-primary: #7c5cbf;
@@ -324,13 +348,16 @@ html[data-theme='dark'][data-brand-theme='victory'] {
   --ifm-navbar-background-color: var(--brand-navbar);
   --ifm-navbar-link-color: var(--brand-cream-light);
   --ifm-navbar-link-hover-color: #ffffff;
-  --ifm-navbar-shadow: 0 1px 0 rgb(245 239 228 / 8%);
+  --ifm-navbar-shadow: 0 1px 0 rgb(255 255 255 / 10%);
   --ifm-hero-background-color: var(--brand-navbar);
   --ifm-footer-background-color: var(--brand-primary-darker);
   --ifm-footer-color: var(--brand-cream-light);
   --ifm-footer-link-color: var(--brand-cream-light);
   --ifm-footer-title-color: #ffffff;
   --ifm-card-background-color: var(--brand-paper);
+  --ifm-color-emphasis-100: #efeaf6;
+  --ifm-color-emphasis-200: #e4dcef;
+  --ifm-color-emphasis-300: #d1c4e3;
 }
 
 html[data-theme='dark'][data-brand-theme='lilac'] {
@@ -343,13 +370,16 @@ html[data-theme='dark'][data-brand-theme='lilac'] {
   --ifm-color-primary-light: #ddd6fe;
   --ifm-color-primary-lighter: #ede9fe;
   --ifm-color-primary-lightest: #f5f3ff;
-  --ifm-background-color: #140f1c;
-  --ifm-background-surface-color: #221833;
+  --ifm-background-color: #120e19;
+  --ifm-background-surface-color: #1d162a;
   --ifm-navbar-background-color: var(--brand-navbar);
-  --ifm-navbar-link-color: #fbf8ff;
+  --ifm-navbar-link-color: #f9f8fc;
   --ifm-hero-background-color: var(--brand-navbar);
   --ifm-footer-background-color: #34224f;
-  --ifm-font-color-base: #f6f2fa;
+  --ifm-font-color-base: #f2eef8;
+  --ifm-color-emphasis-100: #181322;
+  --ifm-color-emphasis-200: #231b31;
+  --ifm-color-emphasis-300: #322844;
 }
 
 [data-brand-theme='obsidian'] {
@@ -358,9 +388,9 @@ html[data-theme='dark'][data-brand-theme='lilac'] {
   --brand-primary-darker: #000000;
   --brand-accent: #ffd700;
   --brand-accent-bright: #ffe66b;
-  --brand-cream: #f7f3e6;
-  --brand-cream-light: #fffbeb;
-  --brand-paper: #fffef8;
+  --brand-cream: #f6f5f2;
+  --brand-cream-light: #faf9f6;
+  --brand-paper: #ffffff;
   --brand-ink: #14120a;
   --brand-navbar: var(--brand-primary-dark);
 
@@ -378,13 +408,16 @@ html[data-theme='dark'][data-brand-theme='lilac'] {
   --ifm-navbar-background-color: var(--brand-navbar);
   --ifm-navbar-link-color: var(--brand-cream-light);
   --ifm-navbar-link-hover-color: #ffffff;
-  --ifm-navbar-shadow: 0 1px 0 rgb(245 239 228 / 8%);
+  --ifm-navbar-shadow: 0 1px 0 rgb(255 255 255 / 10%);
   --ifm-hero-background-color: var(--brand-navbar);
   --ifm-footer-background-color: var(--brand-primary-darker);
   --ifm-footer-color: var(--brand-cream-light);
   --ifm-footer-link-color: var(--brand-cream-light);
   --ifm-footer-title-color: #ffffff;
   --ifm-card-background-color: var(--brand-paper);
+  --ifm-color-emphasis-100: #efeee9;
+  --ifm-color-emphasis-200: #e4e2db;
+  --ifm-color-emphasis-300: #d2cfc4;
 }
 
 html[data-theme='dark'][data-brand-theme='obsidian'] {
@@ -398,12 +431,15 @@ html[data-theme='dark'][data-brand-theme='obsidian'] {
   --ifm-color-primary-lighter: #fde68a;
   --ifm-color-primary-lightest: #fef9c3;
   --ifm-background-color: #0a0a0a;
-  --ifm-background-surface-color: #171717;
+  --ifm-background-surface-color: #161616;
   --ifm-navbar-background-color: var(--brand-navbar);
-  --ifm-navbar-link-color: #fffbeb;
+  --ifm-navbar-link-color: #faf9f6;
   --ifm-hero-background-color: var(--brand-navbar);
   --ifm-footer-background-color: #000000;
-  --ifm-font-color-base: #f7f3e6;
+  --ifm-font-color-base: #f3f2ee;
+  --ifm-color-emphasis-100: #141414;
+  --ifm-color-emphasis-200: #1f1f1f;
+  --ifm-color-emphasis-300: #2c2c2c;
 }
 
 [data-brand-theme='sky'] {
@@ -412,8 +448,8 @@ html[data-theme='dark'][data-brand-theme='obsidian'] {
   --brand-primary-darker: #214e77;
   --brand-accent: #89c2ff;
   --brand-accent-bright: #b5d9ff;
-  --brand-cream: #eef6fc;
-  --brand-cream-light: #f7fbff;
+  --brand-cream: #f2f6fa;
+  --brand-cream-light: #f7fafc;
   --brand-paper: #ffffff;
   --brand-ink: #122333;
   --brand-navbar: var(--brand-primary-dark);
@@ -432,13 +468,16 @@ html[data-theme='dark'][data-brand-theme='obsidian'] {
   --ifm-navbar-background-color: var(--brand-navbar);
   --ifm-navbar-link-color: var(--brand-cream-light);
   --ifm-navbar-link-hover-color: #ffffff;
-  --ifm-navbar-shadow: 0 1px 0 rgb(245 239 228 / 8%);
+  --ifm-navbar-shadow: 0 1px 0 rgb(255 255 255 / 10%);
   --ifm-hero-background-color: var(--brand-navbar);
   --ifm-footer-background-color: var(--brand-primary-darker);
   --ifm-footer-color: var(--brand-cream-light);
   --ifm-footer-link-color: var(--brand-cream-light);
   --ifm-footer-title-color: #ffffff;
   --ifm-card-background-color: var(--brand-paper);
+  --ifm-color-emphasis-100: #e8f0f6;
+  --ifm-color-emphasis-200: #d9e6f0;
+  --ifm-color-emphasis-300: #c2d5e4;
 }
 
 html[data-theme='dark'][data-brand-theme='sky'] {
@@ -451,11 +490,14 @@ html[data-theme='dark'][data-brand-theme='sky'] {
   --ifm-color-primary-light: #a7d4ff;
   --ifm-color-primary-lighter: #c5e4ff;
   --ifm-color-primary-lightest: #e0f1ff;
-  --ifm-background-color: #0b1620;
-  --ifm-background-surface-color: #122333;
+  --ifm-background-color: #0a141c;
+  --ifm-background-surface-color: #11202c;
   --ifm-navbar-background-color: var(--brand-navbar);
-  --ifm-navbar-link-color: #f7fbff;
+  --ifm-navbar-link-color: #f7fafc;
   --ifm-hero-background-color: var(--brand-navbar);
   --ifm-footer-background-color: #173752;
-  --ifm-font-color-base: #eef6fc;
+  --ifm-font-color-base: #eef4f8;
+  --ifm-color-emphasis-100: #101c26;
+  --ifm-color-emphasis-200: #172836;
+  --ifm-color-emphasis-300: #223849;
 }

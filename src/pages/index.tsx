@@ -1,4 +1,5 @@
 import type {ReactNode} from 'react';
+import clsx from 'clsx';
 import Layout from '@theme/Layout';
 import {
   Hero,
@@ -10,6 +11,7 @@ import {
   Contact,
 } from '@site/src/components/Home';
 import {profile} from '@site/src/data/profile';
+import styles from '@site/src/components/Home/styles.module.css';
 
 export default function Home(): ReactNode {
   return (
@@ -17,7 +19,7 @@ export default function Home(): ReactNode {
       title={`${profile.brand} · ${profile.title}`}
       description={`${profile.brand} — ${profile.tagline}`}>
       <Hero />
-      <main>
+      <main className={styles.homeMain}>
         <Stats />
         <Strengths />
         <Skills />
