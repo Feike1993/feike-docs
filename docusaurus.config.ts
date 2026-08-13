@@ -27,6 +27,11 @@ const config: Config = {
 
   onBrokenLinks: 'throw',
 
+  markdown: {
+    mermaid: true,
+  },
+  themes: ['@docusaurus/theme-mermaid'],
+
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
   // may want to replace "en" with "zh-Hans".
@@ -101,6 +106,12 @@ const config: Config = {
           position: 'left',
           label: '技术栈',
         },
+        {
+          type: 'docSidebar',
+          sidebarId: 'projectExperienceSidebar',
+          position: 'left',
+          label: '项目经历',
+        },
         {to: '/blog', label: '博客', position: 'left'},
         {
           type: 'custom-brandThemeSwitcher',
@@ -126,6 +137,10 @@ const config: Config = {
             {
               label: '技术栈',
               to: '/docs/tech-stack/deployment/github-pages',
+            },
+            {
+              label: '项目经历',
+              to: '/docs/projects/ime/overview',
             },
           ],
         },

@@ -1,0 +1,80 @@
+---
+sidebar_position: 6
+title: 状态与监控
+description: 设备三态状态机、连通性看板、XXL 聚合与 TPM 保养点检维修
+---
+
+# 状态与监控
+
+监控看的是 **设备三态**，不是 Doris 里的测点曲线。写入入口统一 `addDeviceOnline`，读出口是 REST 看板和月报。
+
+## 三态并行，不是一张状态枚举
+
+`device_online` 按 `(deviceCode, statusType)` 各一行：
+
+| `status_type` | 含义 | `status_value` |
+| --- | --- | --- |
+| 1 | 运行 | 1 运行，0 停止 |
+| 2 | 故障 | 1 故障，0 正常 |
+| 3 | 联网 | **0 在线，1 离线**（与 KepServer `_Error` 布尔对齐） |
+
+测点侧同义字段：`run_status` / `fault_status` / `networking_status`，在 `mqtt-client` 里映射到同一套 type/value，写入工厂 Oracle。
+
+## 写入状态机
+
+`DeviceOnlineServiceImpl.addDeviceOnline`（`READ_COMMITTED`）：
+
+1. 缺 `deviceCode` / type / value 直接返回
+2. 查当前行：没有则 insert；有则 **仅当新 `gatherTime` 更晚** 才更新，挡住乱序/重放
+3. 历史表 `device_online_history`：无记录则开一段；时间更新则延长当前段；**值变了才再 insert 一段**
+4. 回写台账 `gather_type`（0 TCP / 1 KepServer / 2 网关）
+
+PLC 心跳很碎，这样不会把历史表打成「每秒一行」。日级时长、切换次数由 XXL `processingDeviceStatusTime` / `processingDeviceStatusNumber` 从历史段归并到 `DEVICE_STATUS_TIME`，供开机率月报。
+
+边端还会把当前行写入 Redis `device:now:status::...`，TTL 一天。总部同步开关 `narada.deviceOnlineSync` 在常见 profile 里是关的，需要时才往 Rabbit `device_online` / `device_online_history` 丢。
+
+## 连通性看板
+
+`POST /device/dashboard/connectivity` → `DeviceDashboardController` → `getDeviceConnectivityDashboard`。
+
+口径：
+
+- 已联网设备：`device_ledger.NETWORKING = 1`
+- 当前在线：`status_type = 3 AND status_value = 0`
+- 开机率：在线数 / 已联网数，百分比两位小数
+
+实现分两阶段，避免 Feign 登录上下文丢到公共线程池：
+
+1. **请求线程**：按分组的工作中心编码 Feign `queryWorkCenterIdsByCodes`
+2. **并行 DB**：`CompletableFuture.supplyAsync` 查各 section，再汇总 `totalConnected` / `totalOnline` / `totalOnlineRate`
+
+无参时用默认工厂分组。这是 **REST 轮询**，系统模块的 WebSocket（`/websocket/{userId}`）只做站内通知，不推设备遥测。
+
+智能工厂、在线历史、车间月报等在 `SmartFactoryController`、`DeviceOnlineHistoryController`，月报同样用 `CompletableFuture` 并行算多车间。
+
+## 采集器健康
+
+`DeviceDataCollectorServiceImpl` 以 EMQX 客户端是否在线为准。采集器下线时，给绑定设备补一条联网离线；上线则反过来。XXL `checkDeviceStatus` 按租户/工厂批量对账，避免只靠 MQTT 漏报。
+
+## TPM 闭环（保养 / 点检 / 维修）
+
+和采集监控同一服务，调度在 `KeepJobHandler`、`DeviceTimeJobHandler`：
+
+| 能力 | 要点 |
+| --- | --- |
+| 保养 | 方案周期/定时 → `updateSchemeNextDate`、`createTask` 生成任务；钉钉/站内信 |
+| 点检 | 方案绑定设备；`monitorDeviceCheckStatus` 按工厂字典看班次完成情况 |
+| 维修 | `maintain_manage` / `maintain_part`，故障分类 `fault` |
+| 模具 | `MOLD_BASE`、`MOLD_PRODUCE_LOG` |
+
+多工厂靠 `TenantContext` 与台账上的工厂编码。OEE 微服务是另一条「人工填报效率」线，不要和这里的自动三态混讲。
+
+## 读模型小结
+
+| 问题 | 读哪里 |
+| --- | --- |
+| 现在红绿？ | `device_online`（+ Redis） |
+| 昨天停了多久？ | `DEVICE_STATUS_TIME` / history |
+| 这台机当前温度？ | Doris `device_item_uni` |
+| 这一班过程曲线？ | Doris `device_item_dup` |
+| 限值是否超标？ | `DEVICE_COLLECT_ITEM` + MES 校验 |

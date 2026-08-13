@@ -1,0 +1,61 @@
+---
+sidebar_position: 5
+title: 存储选型
+description: 为何测点走 Doris Routine Load，而不是 InfluxDB 或 TDengine
+---
+
+# 存储选型：Doris Routine Load vs Influx / TDengine
+
+测点没有进 InfluxDB 或 TDengine，而是 **Kafka → Doris Routine Load**。这不是因为 Doris 更像时序库，而是因为查询形态是「最新态 upsert + 全量轨迹 + 和 MES/质检同一套 SQL」。
+
+## 实际落地的分层
+
+```text
+实时状态（跑/停、故障、联网）
+  → 工厂 Oracle / 云端 MySQL：DEVICE_ONLINE + HISTORY
+  → Redis：device:now:status 热点
+测点过程值、PQC 质检历史
+  → Kafka device_item_uni / device_item_dup（以及 history_pqc_check_*）
+  → Doris UNIQUE / DUPLICATE
+  → MES MyBatis @DS("doris")
+```
+
+看板要「现在在不在线」读关系库；MES 要「这台设备当前测点」和「某时段过程曲线/明细」读 Doris。Routine Load 由 `DorisJobHandler.dorisRoutineLoad` 小时级巡检：`PAUSED` 则 `RESUME`，`CANCELLED` 只上报。
+
+查询形态来自 `DeviceItemDupMapper.xml`：按 `device_code + factory_code` 取 `device_item_uni` 最近 20 条；按 `op_time` 时间窗扫 `device_item_dup`；带工序、班次、工厂等业务维。这是 **OLAP SQL**，不是 Grafana 上画一条电压曲线。
+
+## 相对 InfluxDB：为什么 Doris 更贴这条链路
+
+**数据模型对得上双通道。** Doris UNIQUE KEY 做「同设备同测点留最新」，DUPLICATE KEY 做追加日志。Influx 的 measurement + tag/field 擅长点值时序；要同时撑「最新宽表 + 历史明细 + 质检表」，只能拆多套，upsert 语义弱。
+
+**Kafka 是一等公民。** 应用只 `KafkaTemplate.send`。Broker 侧 Routine Load 直拉 Topic。Influx 通常还要 Telegraf、自写 consumer 或 Flux 任务，链路更碎。
+
+**MES 不用换查询栈。** Doris 走 MySQL 协议，现有 MyBatis、动态数据源、导出接口几乎零改造。InfluxQL / Flux 会把 Java 报表和权限过滤重写一遍。
+
+**一份引擎兼仓。** 测点、PQC、FAT 都进 Doris，避免「时序一套、数仓一套」。Influx 不适合当 Oracle 质检历史的迁移目标（边端 `DorisSnServiceImpl` 的路径是 Oracle → Kafka → Doris）。
+
+**多维过滤是 MPP 列存强项。** 工厂 × 工序 × 班次 × 设备 × 测项一起 WHERE / GROUP BY。Influx 把设备码、测项名当高基数 tag，容易 series explosion。
+
+## 相对 TDengine：IoT 超级表解决不了兼仓
+
+TDengine 超级表 + 一设备一子表，对纯遥测写入和 `LAST_ROW` 很合适。本项目额外要：
+
+- UNIQUE 最新态给 MES 列表/看板接口
+- 质检宽表（多列业务字段，不是单一 metric）
+- 和 MES 维表同一 SQL 生态、同一 JDBC 账号模型
+
+Doris 更接近「分析型 MySQL」。Kafka → 表的运维（`SHOW ROUTINE LOAD` / PAUSE / RESUME）已经在 `DorisRoutineLoadManager` 落地；TDengine 多依赖 taosAdapter 或自写写入器。团队是 Java + SQL + MyBatis，JDBC 即用。
+
+## 相对专用 TSDB 需要正视的短板
+
+**时效是近实时，不是毫秒点写。** Routine Load 微批拉 Kafka，秒级可见。所以「设备红绿状态」不读 Doris，读 `device_online` / Redis。把实时告警建在 Doris 上会踩延迟。
+
+**压缩、TTL、降采样要自己管。** Influx RP、TDengine 分区分桶对 float 点值更省心。`device_item_dup` 日亿级必须按天/月分区并 drop，否则只追加会胀。降采样、插值、`last()` 窗口，TSDB 更原生；Doris 用窗口函数或物化视图能做，但不是时序库体验。
+
+**运维多一跳。** Kafka + Routine Load 作业会 PAUSED（脏数据、磁盘、offset）。本仓用 XXL 自动 RESUME 兜底。Influx/TDengine 少这一跳，也就没有 uni/dup 双模型这么干净。
+
+**单设备「最新一行」不是 Doris 的主场。** TDengine `LAST_ROW`、Influx last 更轻。这里用 UNIQUE 表 + `order by collect_time desc limit 20` 折中，对 MES 够用。
+
+## 一句话结论
+
+测点既要最新态给 MES，又要全量轨迹做追溯，还要和质检、工序同一套 SQL；Kafka 已经在链路上。**Doris UNIQUE + DUPLICATE + Routine Load 是「时序写入能力 × 数仓查询能力」的折中**，不是 Doris 比 Influx/TDengine 更像时序库。真正的实时状态仍放在 Oracle/MySQL（+ Redis），Doris 负责可分析的海量测点与历史。

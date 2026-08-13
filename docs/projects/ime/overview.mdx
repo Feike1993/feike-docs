@@ -1,0 +1,63 @@
+---
+sidebar_position: 1
+title: 项目总览
+description: IME 数据采集与监控平台的背景、职责、技术栈与代码边界
+---
+
+# 项目总览
+
+**IME 数据采集与监控平台**（Industrial Manufacturing Execution 产品伞下的采集与监控能力）是一套面向工厂设备的 IoT 数据中台：把 PLC / KepServer / 工业网关 / 现场 TCP 探测的数据接进来，归一成设备状态与测点时序，再供给看板、MES 过程追溯和保养点检。
+
+| 项 | 内容 |
+| --- | --- |
+| 角色 | 技术负责人 |
+| 时间 | 2022.03 – 2023.06 |
+| 职责 | 架构设计、核心开发、集群部署、性能优化与跨系统集成，带团队从 0 到 1 落地 |
+| 成果 | 分布式架构可横向扩展，支撑 2000+ 设备并发接入，日处理数据量过亿，长期稳定运行 |
+
+## 一句话定位
+
+IME 是部署品牌（网关入口如 `ime-api`），不是单一 Maven 模块。**采集与监控 = 云端 `narada-cloud-device` + 工厂边端 `mqtt-client`**；MES / OEE / WMS / 系统服务是同一产品伞下的兄弟模块。
+
+## 要先分清的两套代码
+
+对照实现时不要把「云平台」和「测点热路径」混成一个仓：
+
+| 仓库 | 角色 |
+| --- | --- |
+| `narada-cloud-parent` | Narada Cloud 微服务（JeecgBoot 衍生）。设备台账、连通性看板、保养/点检/维修、MQTT 状态接入、Gateway / Nacos / XXL-JOB |
+| `mqtt-client` | 独立 Spring Boot 边端。共享订阅消费测点 MQTT，双写 Kafka 进 Doris，状态写入工厂 Oracle + Redis |
+
+文档里常写的高并发亮点（双 Kafka、IO/CPU 线程池、自适应批次、Oracle → Doris）主要在 `mqtt-client`；云端 device 服务负责状态归一、看板和 TPM 闭环。
+
+## 业务从哪来、到哪去
+
+前期在产线后台做生产、仓储、全链条追溯，后续把设备数据采集抽成统一数据平台。设备侧两条数据面：
+
+1. **状态面**：运行 / 故障 / 联网 → `device_online` + 历史分段 → 看板与开机率
+2. **测点面**：采集项实时值 → Kafka `device_item_uni` / `device_item_dup` → Doris → MES 过程数据查询
+
+OPC / Modbus 不在本仓实现，由 KepServer 或工业网关完成协议转换后走 MQTT。
+
+## 技术栈（实现口径）
+
+云端（`narada-cloud-parent`）与边端（`mqtt-client`）版本并不相同，需要按两套运行时来看：
+
+| 层 | 云端 device / 微服务 | 边端 mqtt-client |
+| --- | --- | --- |
+| 运行时 | Java 8，Spring Boot 2.6.6 | Java 21，Spring Boot 3.2.5 |
+| 微服务 | Spring Cloud 2021.0.3 + Alibaba 2021.0.1.0，Nacos 2.0.4 | 工厂内独立进程，按 profile 多厂部署 |
+| MQTT | mica-mqtt 1.3.7，MQTT 5，QoS 1 | mica-mqtt 2.2.9，MQTT 5，QoS 1 |
+| 消息 | RabbitMQ（状态异步、台账同步） | Kafka 双通道 + 可选 Rabbit 回传总部 |
+| 存储 | MySQL / Oracle（状态、台账、TPM） | 工厂 Oracle（状态）+ Redis（热点）+ Doris（测点/质检） |
+| 调度 | XXL-JOB 2.2.0 | XXL-JOB 3.2.0 |
+| 查询 | MyBatis-Plus，Feign 调系统服务 | MyBatis-Plus，`@DS("doris")` 在 MES 侧读 |
+
+## 文档怎么读
+
+- [整体架构](./architecture.mdx)：模块地图与通信方式
+- [采集接入](./collection.mdx)：三通道状态 + 测点流
+- [高并发设计](./concurrency.mdx)：共享订阅、队列、线程池、双 Kafka
+- [存储选型](./storage.mdx)：为何用 Doris Routine Load 而不是 Influx / TDengine
+- [状态与监控](./monitoring.mdx)：状态机、看板、TPM
+- [要点复盘](./recap.mdx)：能力概要、实现对照与设计问答
