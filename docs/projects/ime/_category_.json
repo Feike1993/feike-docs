@@ -1,0 +1,9 @@
+{
+  "label": "IME 数据采集与监控",
+  "position": 1,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "description": "从技术角度拆解 IME 数据采集与监控平台：架构、采集接入、高并发、存储选型与设计取舍。代码对照 narada-cloud-parent 与配套 mqtt-client。"
+  }
+}
