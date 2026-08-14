@@ -96,9 +96,9 @@ const config: Config = {
       items: [
         {
           type: 'docSidebar',
-          sidebarId: 'tutorialSidebar',
+          sidebarId: 'aiSidebar',
           position: 'left',
-          label: '教程',
+          label: 'AI',
         },
         {
           type: 'docSidebar',
@@ -131,8 +131,8 @@ const config: Config = {
           title: '文档',
           items: [
             {
-              label: '教程',
-              to: '/docs/intro',
+              label: 'AI',
+              to: '/docs/ai/claude-code',
             },
             {
               label: '技术栈',

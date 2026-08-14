@@ -22,7 +22,7 @@ export default function Hero(): ReactNode {
           </a>
           <Link
             className={clsx('button button--lg button--outline', styles.ctaSecondary)}
-            to="/docs/intro">
+            to="/docs/ai/claude-code/claude-code-native">
             阅读文档
           </Link>
         </div>
