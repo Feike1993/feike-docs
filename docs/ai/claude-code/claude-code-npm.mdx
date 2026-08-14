@@ -1,0 +1,78 @@
+---
+sidebar_position: 3
+title: npm 全局安装（推荐，本机未测）
+description: 用 npm i -g @anthropic-ai/claude-code 安装 Claude Code，步骤对齐 DeepSeek 文档；本机未跑通这条路径
+---
+
+# npm 全局安装（推荐，本机未测）
+
+本机检查、终端、代理见 [原生安装器](./claude-code-native.mdx)。本机已经用 [Homebrew cask](./claude-code-brew.mdx) 装上 `2.1.223` 时，不必再 npm 一份，只需改环境变量（见下文「从现有安装迁移」）。
+
+:::info[推荐，本机未测]
+第三条可用路径。安装命令对齐 [DeepSeek：接入 Claude Code](https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/claude_code) 的「从零安装」。**本机没有跑通一次成功的 `npm install -g`**（历史里还有一次打错包名），下文命令与环境变量来自该文档，不是本机实录。
+:::
+
+## 1. 安装 Node.js
+
+DeepSeek 要求 **Node.js 18+**。本机已有（未用 npm 装 Claude Code，仅记录运行时）：
+
+```text
+node v26.0.0
+npm 11.12.1
+```
+
+官方 npm 包较新版本可能要求更高的 Node，以当时报错为准。
+
+## 2. 安装 Claude Code
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+**不要** `sudo npm install -g`。
+
+装完验证：
+
+```bash
+claude --version
+```
+
+能打出版本号即安装成功（DeepSeek 文档口径）。本机未执行这一步。
+
+## 3. 配置环境变量（DeepSeek）
+
+API Key 在 [DeepSeek Platform](https://platform.deepseek.com) 获取，**不要写进仓库或截图**。Linux / macOS 在终端执行（把占位符换成自己的 Key）：
+
+```bash
+export ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic
+export ANTHROPIC_AUTH_TOKEN=<你的 DeepSeek API Key>
+export ANTHROPIC_MODEL=deepseek-v4-pro[1m]
+export ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek-v4-pro[1m]
+export ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-v4-pro[1m]
+export ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash
+export CLAUDE_CODE_SUBAGENT_MODEL=deepseek-v4-flash
+export CLAUDE_CODE_EFFORT_LEVEL=max
+export CLAUDE_CODE_AUTO_COMPACT_WINDOW=786432
+```
+
+只对当前窗口有效。要长期生效再写入 `~/.zshrc`，或写在 `~/.claude/settings.json` 的 `env` 里。直连 Anthropic 官方 API 时用 `ANTHROPIC_API_KEY`，不要和自定义 `ANTHROPIC_BASE_URL` 混用。
+
+变量名与模型名以 [DeepSeek 文档](https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/claude_code) 为准，官方可能会改。
+
+## 从现有安装迁移
+
+已经用 cask / 原生装好 `claude` 时，DeepSeek 的做法是 **只改环境变量**，不必再 `npm install -g`。配好后：
+
+```bash
+cd /path/to/your-project
+claude
+```
+
+改 endpoint 之后，部分官方能力（如部分 MCP / Remote Control）可能不可用，以 [Claude Code 环境变量](https://code.claude.com/docs/en/env-vars) 和 DeepSeek 文档为准。
+
+## 参考
+
+- [DeepSeek：接入 Claude Code](https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/claude_code)
+- [Claude Code Advanced setup](https://code.claude.com/docs/en/setup)
+- [Homebrew cask（实测成功）](./claude-code-brew.mdx)
+- [原生安装器（实测失败）](./claude-code-native.mdx)

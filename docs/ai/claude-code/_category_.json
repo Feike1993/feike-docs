@@ -1,0 +1,10 @@
+{
+  "label": "Claude Code 安装",
+  "position": 1,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "slug": "/ai/claude-code",
+    "description": "macOS 三条安装路径：原生安装器（实测失败）、Homebrew cask（实测成功）、npm 全局安装（推荐，本机未测）。"
+  }
+}

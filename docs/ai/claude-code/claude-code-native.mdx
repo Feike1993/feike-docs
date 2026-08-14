@@ -1,0 +1,243 @@
+---
+sidebar_position: 1
+title: 原生安装器（实测失败）
+description: 官方 curl install.sh 在国内 Mac 上的实测：HEAD 能跳到 bootstrap，管道安装在 downloads.claude.ai 被 TLS 掐断
+---
+
+# 原生安装器（实测失败）
+
+口径对齐官方 [Advanced setup](https://code.claude.com/docs/en/setup)（2026）：**macOS 13+**，原生安装器是官方首选。国内关键不是「电脑能不能上网」，而是终端请求 `claude.ai` 时拿到的是安装脚本，而不是区域不可用页面；真正 `| bash` 还要能连上 `downloads.claude.ai`。
+
+:::danger[本机实测失败]
+2026-08-14：导出 `https_proxy` 后，`curl -sI https://claude.ai/install.sh` 能 302 到 `bootstrap.sh`；`curl -fsSL … | bash` 在 `downloads.claude.ai:443` 报 `SSL_ERROR_SYSCALL`（退出码 35）。不要反复管道安装。改走 [Homebrew cask（实测成功）](./claude-code-brew.mdx)，或看 [npm 全局安装（推荐，本机未测）](./claude-code-npm.mdx)。
+:::
+
+:::info[截图]
+「关于本机」「打开终端」「终端走代理」「原生安装失败」已配实拍。浏览器登录等其余界面图仍待补。
+:::
+
+另外两条路径：
+
+- [Homebrew cask（实测成功）](./claude-code-brew.mdx)
+- [npm 全局安装（推荐，本机未测）](./claude-code-npm.mdx)
+
+## 写在前面
+
+- 需要 **Pro / Max / Team / Enterprise / Console** 账号。Claude.ai **免费档不含** Claude Code。
+- 官方支持地区见 [Anthropic supported countries](https://www.anthropic.com/supported-countries)。本机实测：能连上 Cloudflare，直连仍会被重定向到区域不可用页。
+- 不要把密钥、Cookie、代理软件截图提交进仓库。
+- 本机检查、终端、代理只写在本文。另外两篇默认你已经做完这些步骤。
+
+## 1. 确认本机：macOS 13+、芯片
+
+官方要求 macOS 13.0+，4 GB+ RAM，x64 或 ARM64。不必先点「关于本机」，终端即可核对：
+
+```bash
+sw_vers
+uname -m
+```
+
+本机 2026-08-14 实测：
+
+```text
+ProductName:		macOS
+ProductVersion:		26.5.2
+BuildVersion:		25F84
+arm64
+```
+
+`26.5.2` / `arm64` 满足要求（Apple Silicon）。Intel Mac 会看到 `x86_64`，安装命令相同。
+
+<div className="docScreenshot">
+
+![关于本机：MacBook Pro 14 英寸，M5 Pro，macOS Tahoe 26.5.2](/img/ai/claude-code-macos/01-about-mac.png)
+
+</div>
+
+## 2. 打开终端（zsh）
+
+Spotlight 搜「终端」，或在 Cursor / VS Code 里打开集成终端。默认应是 zsh：
+
+```bash
+echo $SHELL
+zsh --version
+```
+
+本机实测：
+
+```text
+/bin/zsh
+zsh 5.9 (arm64-apple-darwin25.0)
+```
+
+<div className="docScreenshotWide">
+
+![打开终端：sw_vers、uname -m、zsh](/img/ai/claude-code-macos/02-terminal.png)
+
+</div>
+
+## 3. 网络：先让终端真正够到 claude.ai
+
+装之前先测，**不要**一上来就把 `install.sh` 管道给 bash。
+
+```bash
+curl -sI --max-time 20 https://claude.ai
+curl -sI --max-time 20 https://claude.ai/install.sh
+```
+
+本机未走可用代理时的真实结果：
+
+```text
+HTTP/2 302
+location: https://www.anthropic.com/app-unavailable-in-region
+server: cloudflare
+cf-ray: a2adb419cddc2606-LAX
+```
+
+`https://claude.ai/install.sh` 同样是 **302 到区域不可用页**，不是 shell 脚本。若此时执行官方一键安装，bash 会吃到 HTML，典型报错：
+
+```text
+syntax error near unexpected token '<'
+```
+
+另外 `https://api.anthropic.com` 本机返回 **HTTP/2 403**（Cloudflare）。也就是说：DNS / TLS 通了，业务仍被拦。
+
+国内要先保证：
+
+1. **终端**走代理，不只是菜单栏图标亮了。macOS「系统代理」给 Safari 用；`curl` 默认不读它。
+2. 再跑 `curl -sI https://claude.ai/install.sh`，不能再跳到 `app-unavailable-in-region`。
+3. HEAD 通了再决定要不要 `| bash`。本机 HEAD 通了，管道安装仍然失败，见第 4 步。
+
+### 只开系统代理不够，终端要单独导出
+
+只开菜单栏「系统代理」时，`curl` 的响应和未走代理一样：`HTTP/2 302` → `app-unavailable-in-region`，`cf-ray` 在 `LAX`。请求已经打到 Cloudflare，但终端没走 `7897`。
+
+本机系统代理是 `127.0.0.1:7897`（`scutil --proxy`）。**这不等于 curl 在用它。** 在同一窗口先查：
+
+```bash
+scutil --proxy | grep -E 'HTTPEnable|HTTPPort|HTTPSPort|HTTPProxy'
+env | grep -i proxy
+curl -sI -v --max-time 20 https://claude.ai/install.sh 2>&1 | grep -iE 'proxy|location:|^< HTTP/'
+```
+
+- `env` 里没有 `https_proxy` / `HTTPS_PROXY`，且 verbose 里没有 `Uses proxy env variable`：终端仍是直连，菜单栏开代理无效。把系统代理端口写进当前 shell（端口以 `scutil` 为准，本机是 **7897**）：
+
+```bash
+export https_proxy=http://127.0.0.1:7897
+export http_proxy=http://127.0.0.1:7897
+curl -sI --max-time 20 https://claude.ai/install.sh
+```
+
+本机按上面导出后再测，终端已经走代理。关键不是再出现 `app-unavailable-in-region`，而是 `location` 指向安装脚本：
+
+```text
+HTTP/1.1 200 Connection established
+HTTP/2 302
+location: https://downloads.claude.ai/claude-code-releases/bootstrap.sh
+```
+
+<div className="docScreenshotWide">
+
+![终端导出 127.0.0.1:7897 后，curl install.sh 302 到 bootstrap.sh](/img/ai/claude-code-macos/03-network-proxy.png)
+
+</div>
+
+代理软件里若有「复制终端命令」，用它导出的变量即可，不必手写端口。只对当前窗口有效；要长期生效再写入 `~/.zshrc`。
+
+若 verbose 已经显示走了 `127.0.0.1:7897`，**仍然** 302 到区域页：终端代理通了，但出口 IP 仍不在 [Anthropic 支持地区](https://www.anthropic.com/supported-countries)。不要强行管道安装。
+
+:::caution
+本文不介绍具体代理软件或中转站。目标只有一个：让终端拿到官方安装脚本和后续 API，而不是区域拦截页。
+:::
+
+## 4. 原生安装器
+
+官方 macOS 首选：
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+```
+
+成功后二进制一般在 `~/.local/bin/claude`，原生安装会后台自动更新。
+
+第 3 步 `curl -sI` 通了，只说明 **HEAD** 能拿到跳转。真正 `| bash` 还会再连 `downloads.claude.ai` 拉 bootstrap。本机在已导出 `https_proxy` 的同一窗口实测：
+
+```text
+curl: (35) LibreSSL SSL_connect: SSL_ERROR_SYSCALL in connection to downloads.claude.ai:443
+```
+
+<div className="docScreenshotWide">
+
+![原生安装：curl install.sh 管道 bash 时 SSL_ERROR_SYSCALL](/img/ai/claude-code-macos/04-native-install.png)
+
+</div>
+
+`install.sh` 的探测过了，下载域 TLS 握手仍被掐断。不要反复管道安装。本机改用 [Homebrew cask](./claude-code-brew.mdx) 后装上了 `2.1.223`。
+
+## 5. 把 `~/.local/bin` 写入 PATH
+
+原生安装成功后，新开一个终端确认：
+
+```bash
+echo $PATH | tr ':' '\n' | grep -E 'local/bin|homebrew/bin'
+```
+
+若 `claude` 报 `command not found`，把下面这行放进 `~/.zshrc`（没有该文件就新建）：
+
+```bash
+export PATH="$PATH:$HOME/.local/bin"
+```
+
+然后：
+
+```bash
+source ~/.zshrc
+```
+
+本机 `~/.zshrc` **已经有**这一行。Apple Silicon 上 Homebrew 的 `claude` 走 `/opt/homebrew/bin`，一般已在 PATH 里。本机当前的 `claude` 来自 cask，不是 `~/.local/bin`。
+
+![写入 PATH](pathname:///img/ai/claude-code-macos/05-path-zshrc.png)
+
+原生若装成功，验证：
+
+```bash
+command -v claude
+claude --version
+claude doctor
+```
+
+本机这条路径没有产出二进制。cask 升级后的版本见 [Homebrew 篇](./claude-code-brew.mdx)。
+
+## 6. 登录
+
+在项目目录执行：
+
+```bash
+cd /path/to/your/project
+claude
+```
+
+按提示用浏览器登录 Anthropic。免费档不能用 Claude Code。若环境里已有 `ANTHROPIC_API_KEY`，交互模式会先问你是否用这把 Key 覆盖订阅登录——不要把 Key 贴进文档或截图。
+
+改用 DeepSeek 等兼容接口时，见 [npm 篇的环境变量](./claude-code-npm.mdx)。
+
+![浏览器登录](pathname:///img/ai/claude-code-macos/07-browser-login.png)
+
+## 常见失败
+
+| 现象 | 原因 | 处理 |
+| --- | --- | --- |
+| `syntax error near unexpected token '<'` | `install.sh` 实际是 HTML（常见于 302 区域页） | 先 `curl -sI https://claude.ai/install.sh`；或改用 [cask](./claude-code-brew.mdx) |
+| HTTP 403 / `app-unavailable-in-region` | 直连被地区拦截；或只开了系统代理、`curl` 没走 | 给当前 shell 导出 `https_proxy` 后再测 |
+| `curl: (35) SSL_ERROR_SYSCALL` 连 `downloads.claude.ai` | HEAD 通了，真正下载域 TLS 被掐 | 不要反复 `| bash`；改用 [cask](./claude-code-brew.mdx) |
+| `command not found: claude` | PATH 没有 `~/.local/bin` 或 `/opt/homebrew/bin` | 见第 5 步，并新开终端 |
+| 登录超时 / 浏览器打不开 | 会话要访问 Claude 登录域 | 与第 3 步同一类网络问题 |
+
+![常见失败](pathname:///img/ai/claude-code-macos/10-common-failures.png)
+
+## 参考
+
+- [Claude Code Advanced setup](https://code.claude.com/docs/en/setup)
+- [Troubleshoot installation](https://code.claude.com/docs/en/troubleshoot-install)
+- [Environment variables](https://code.claude.com/docs/en/env-vars)
+- [DeepSeek 接入 Claude Code](https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/claude_code)
