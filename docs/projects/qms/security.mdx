@@ -1,0 +1,38 @@
+---
+sidebar_position: 6
+title: 接口签名
+description: 参数排序、共享密钥 MD5 与时间戳窗口，以及和 JWT / 出站 HMAC 的分工
+---
+
+# 接口签名与防重放
+
+系统间调用除了 JWT，还有一套入站验签：请求头 `X-Sign`、`X-Timestamp`，参数排序后拼密钥做 MD5。用来防篡改，并挡住过期请求；**不是**一次性 nonce 防重放。
+
+## 入站流程
+
+`SignAuthInterceptor.preHandle`：
+
+1. `BodyReaderHttpServletRequestWrapper` 包一层，body 可重复读
+2. `HttpUtils.getAllParams` 收集 URL + body，放进 `SortedMap`
+3. 读 `X-TIMESTAMP`：支持 `yyyyMMddHHmmss` 或毫秒时间戳
+4. 与服务器时间差超过 **5 分钟**（`MAX_EXPIRE = 5 * 60`）直接失败
+5. `SignUtil.verifySign`：去掉 `_t`，`JSONObject.toJSONString(sortedMap) + signatureSecret`，`DigestUtils.md5DigestAsHex` 再转大写，与 `X-Sign` 比较
+
+密钥来自 `SignBaseConfig.signatureSecret`（Nacos / `sign.*`）。默认 `signUrls` 仍带 Jeecg 字典路径遗留，真正拦截哪些 URL 以运行配置为准。
+
+「参数排序加密」在实现里就是 **Tree/SortedMap 保证字段顺序 + 共享密钥 MD5**，不是非对称签名，也不是 HMAC-SHA256。
+
+## 防重放边界
+
+5 分钟窗能挡住明显过期包，同一签名在窗口内 **可以重放**。本仓没有把 nonce 写入 Redis、也没有一次性 token。要加强只能在网关或另做 replay cache，不要把现状说成严格一次性防重放。
+
+## 和另外两套「签名」分开讲
+
+| 机制 | 位置 | 干什么 |
+| --- | --- | --- |
+| JWT | `AuthenticationInterceptor` | 人用浏览器登录 |
+| 入站 MD5 签 | `SignAuthInterceptor` | 服务间 API 身份与完整性 |
+| 出站 HMAC-SHA256 | `util/SignInterceptor`（OkHttp） | 调外部（如 Eagle）时带 `X-HMAC-SIGNATURE` |
+| Feign 系统号 | `HrFeignConfiguration` | `systemCode` / `appId` / secret 调 HR、权限 |
+
+`framework/conf/SignatureInterceptor` 里验签逻辑是注释掉的，也没挂到 `WebConfigurer`，不要当成现行拦截器。

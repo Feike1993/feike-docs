@@ -1,0 +1,31 @@
+---
+sidebar_position: 7
+title: AI 知识库对接
+description: 过程问题跟踪台账的向量同步，以及跳转外部 Agent
+---
+
+# AI 知识库对接
+
+智能诊断、语义检索跑在公司 **AIKB 服务**里。QMS 只做两件事：把质量问题台账同步成向量文档，以及给前端一个免登跳转地址。本仓没有 embedding 模型、向量库客户端或诊断规则引擎。
+
+## 台账 → 向量同步
+
+过程质量问题跟踪 `ProcessProductFollowAccountServiceImpl`：
+
+- 配置 `narada.vectorSaveUrl` / `vectorDeleteUrl`
+- 保存、更新后 `@Async saveVector(id)`；删除走 `deleteVector`
+- 更新时先 `asyncSyncVector`：按 id 删旧再写新
+
+`saveVector` 查出 DTO，打成 JSON：`className = QualityIssueTrackingLedger`，`fieldDescName = issueDescription`，`entity` 里带工厂、产线、工序、问题描述、临时措施、原因、整改、责任人等。然后 `HttpRequest.post(vectorSaveUrl)`。返回码非 0 只打日志，不回滚业务单。
+
+同步字段是给人读的业务摘要，向量化本身在对端完成。QMS 保证「台账变更后知识库有一份对应文档」。
+
+## 跳转 Agent
+
+`GET /ai/skipAgent`（`AiController`）：取当前用户，POST 到 `narada-aikb-server` 的 `login/skipAgent`，把跳转 URL 还给前端。应用侧不嵌 LLM。
+
+## 边界
+
+- 没有本地语义检索 API
+- 没有在 QMS 里做相似问题推荐或自动根因
+- 诊断能力以 AIKB 为准；QMS 提供干净、及时的问题台账数据

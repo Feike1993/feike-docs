@@ -1,0 +1,37 @@
+---
+sidebar_position: 3
+title: 报表与质量看板
+description: 过程/来料看板、MyBatis 聚合统计与 EasyExcel 导出
+---
+
+# 报表与质量看板
+
+文档里常说的「报表引擎」，在本仓是 **按业务手写的统计 Service + MyBatis XML + EasyExcel 导出**，不是 UReport、Jasper 或可配置报表产品。Freemarker / Velocity 只给 MyBatis-Plus 代码生成用。
+
+## 三块看板
+
+| 看板 | 入口 | 数据从哪来 |
+| --- | --- | --- |
+| 过程质量 | `POST /processQualityKanban/select` | PostgreSQL 过程检查台账，现场聚合直通率 / 合格率 |
+| 来料质量 | `IqcCheckController` + `IQCViewServiceImpl` | `iqc_check` 及目标表，日/周/月 |
+| 客诉 | `POST /ksView/getWQHByDay` | Doris ADS（见 [分析查询](./analytics.mdx)） |
+
+过程质量看板 `ProcessQualityKanbanController` 调 `ProcessStandingBookServiceImpl.selectKanban`：按产品线枚举 → 车间/目标 → `baseMapper.select` 台账 → 拼 `ProcessKanbanRespVo`。趋势图走 `selectTrendChart`。查询接口标了 `@PassToken`，大屏可以不带登录 token。
+
+## 报表怎么出
+
+典型链路：
+
+1. Mapper 里写好聚合 SQL（如 `IqcCheckMapper.querySupplierReport`、过程台账 `selectReportFormByPage`）
+2. Service 填 VO / 导出模型（`com.nd.model.excel.*`，如 `ReportFormExport`）
+3. `ExcelUtils.export2Web`（EasyExcel 2.1.x）下载
+
+过程质量：`ProcessStandingBookController` 的分页报表与 `exportReportForm`。  
+来料：供应商绩效、处罚报表 `querySupplierReport` / `querySupplierPunishReport`。  
+过程问题跟踪：整改率、退回率、区域分布等一串 `*Report` 方法在 `IProcessProductFollowAccountService`。
+
+精度和口径（一次合格率、直通率、目标值）都在各自 Service 里算，改一个指标通常要改 SQL + Java，没有「改模板就出新报表」的引擎层。
+
+## 和 MES 的报表向接口
+
+`GET /process-standing-book/getWeekDirectRateByProcedureId` 按工序 id 回一周直通率，注释写明给 MES 用（产线 id 与 IME 对齐）。这是 **QMS 把过程质量结果提供出去**，不是 QMS 去采设备测点。
