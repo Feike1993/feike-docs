@@ -6,14 +6,10 @@ description: 官方 curl install.sh 在国内 Mac 上的实测：HEAD 能跳到 
 
 # 原生安装器（实测失败）
 
-口径对齐官方 [Advanced setup](https://code.claude.com/docs/en/setup)（2026）：**macOS 13+**，原生安装器是官方首选。国内关键不是「电脑能不能上网」，而是终端请求 `claude.ai` 时拿到的是安装脚本，而不是区域不可用页面；真正 `| bash` 还要能连上 `downloads.claude.ai`。
+口径对齐官方 [Advanced setup](https://code.claude.com/docs/zh-CN/setup)（2026）：**macOS 13+**，原生安装器是官方首选。国内关键不是「电脑能不能上网」，而是终端请求 `claude.ai` 时拿到的是安装脚本，而不是区域不可用页面；真正 `| bash` 还要能连上 `downloads.claude.ai`。
 
 :::danger[本机实测失败]
 2026-08-14：导出 `https_proxy` 后，`curl -sI https://claude.ai/install.sh` 能 302 到 `bootstrap.sh`；`curl -fsSL … | bash` 在 `downloads.claude.ai:443` 报 `SSL_ERROR_SYSCALL`（退出码 35）。不要反复管道安装。改走 [Homebrew cask（实测成功）](./claude-code-brew.mdx)，或看 [npm 全局安装（推荐，本机未测）](./claude-code-npm.mdx)。
-:::
-
-:::info[截图]
-「关于本机」「打开终端」「终端走代理」「原生安装失败」已配实拍。浏览器登录等其余界面图仍待补。
 :::
 
 另外两条路径：
@@ -196,8 +192,6 @@ source ~/.zshrc
 
 本机 `~/.zshrc` **已经有**这一行。Apple Silicon 上 Homebrew 的 `claude` 走 `/opt/homebrew/bin`，一般已在 PATH 里。本机当前的 `claude` 来自 cask，不是 `~/.local/bin`。
 
-![写入 PATH](pathname:///img/ai/claude-code-macos/05-path-zshrc.png)
-
 原生若装成功，验证：
 
 ```bash
@@ -221,8 +215,6 @@ claude
 
 改用 DeepSeek 等兼容接口时，见 [npm 篇的环境变量](./claude-code-npm.mdx)。
 
-![浏览器登录](pathname:///img/ai/claude-code-macos/07-browser-login.png)
-
 ## 常见失败
 
 | 现象 | 原因 | 处理 |
@@ -233,11 +225,9 @@ claude
 | `command not found: claude` | PATH 没有 `~/.local/bin` 或 `/opt/homebrew/bin` | 见第 5 步，并新开终端 |
 | 登录超时 / 浏览器打不开 | 会话要访问 Claude 登录域 | 与第 3 步同一类网络问题 |
 
-![常见失败](pathname:///img/ai/claude-code-macos/10-common-failures.png)
-
 ## 参考
 
-- [Claude Code Advanced setup](https://code.claude.com/docs/en/setup)
-- [Troubleshoot installation](https://code.claude.com/docs/en/troubleshoot-install)
-- [Environment variables](https://code.claude.com/docs/en/env-vars)
+- [Claude Code Advanced setup](https://code.claude.com/docs/zh-CN/setup)
+- [Troubleshoot installation](https://code.claude.com/docs/zh-CN/troubleshoot-install)
+- [Environment variables](https://code.claude.com/docs/zh-CN/env-vars)
 - [DeepSeek 接入 Claude Code](https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/claude_code)
