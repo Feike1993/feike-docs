@@ -45,3 +45,24 @@ main .container {
 .theme-doc-sidebar-container {
   background: var(--ifm-background-surface-color);
 }
+
+/* Compact GUI screenshots (About This Mac, etc.) — keep 2x PNGs from filling the column */
+.docScreenshot {
+  margin: 1rem 0;
+}
+
+.docScreenshot img {
+  max-width: min(260px, 100%);
+  height: auto;
+  display: block;
+}
+
+.docScreenshotWide {
+  margin: 1rem 0;
+}
+
+.docScreenshotWide img {
+  max-width: min(640px, 100%);
+  height: auto;
+  display: block;
+}
