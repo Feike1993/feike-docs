@@ -1,0 +1,78 @@
+---
+sidebar_position: 2
+title: 整体架构
+description: QMS 单体包结构、Nacos、多数据源与周边系统
+---
+
+# 整体架构
+
+QMS 后端只有一个 Maven 模块 `narada-qms-server`。入口 `NaradaApplication`：`@EnableDiscoveryClient` + `@EnableFeignClients`。HTTP context `/narada-qms-server`，端口 **8382**；流程回调另开 gRPC **3332**。运行时配置在 Nacos（`group: dev`），仓库里的 `bootstrap.yml` 只负责连上配置中心。
+
+```mermaid
+flowchart LR
+  ui[外部前端]
+  qms[narada-qms-server]
+  pg[PostgreSQL_master]
+  doris[Doris_ADS]
+  click[ClickHouse遗留]
+  sapMw[SAP中间件]
+  flow[工作流_OA]
+  aikb[AI知识库]
+  hr[HR_权限]
+
+  ui -->|HTTP_8382| qms
+  flow -->|gRPC_3332_或_HTTP_mk| qms
+  qms --> pg
+  qms --> doris
+  qms --> click
+  qms --> sapMw
+  qms --> aikb
+  qms --> hr
+```
+
+和 [IME](/docs/projects/ime/overview) 不同：IME 是多服务 + 边端采集；QMS 是质量运营单体，分析库当只读从库用。
+
+## 包怎么切
+
+```
+com.nd
+  controller/{master,ks,rd,sap,doris,grant,...}
+  service/{master,facade,doris,click,sap}
+  mapper/{master,doris,click}
+  grpc/{server,client}
+  sign/          入站签名
+  feign/         HR、权限
+  mk/            OA HTTP 回调
+  framework/jwt  登录拦截
+```
+
+约 80+ Controller。业务集中在 `controller.master`（IQC、过程台账、索赔、计量、QC）和 `controller.ks`（客诉看板）。
+
+## 数据源
+
+`dynamic-datasource-spring-boot-starter`：
+
+| 数据源 | 用途 |
+| --- | --- |
+| `master` | PostgreSQL，台账、目标、审批单、主数据 |
+| `doris` | `@DS("doris")` 读客诉 ADS |
+| `click` | ClickHouse，同一套 ADS 的旧路径 |
+
+Doris 走 MySQL 协议（FE 9030 这类口径），对本服务就是「另一个 JDBC」。生产连接串在 Nacos，不进文档。
+
+## 服务怎么对话
+
+| 方式 | 对象 |
+| --- | --- |
+| OpenFeign | `BaseHrClient`（人员组织）、`BasePermissionClient`（权限） |
+| Hutool `HttpRequest` | SAP 中间件、AIKB / 向量接口、钉钉 |
+| gRPC `@GrpcService` | 流程中心拉单据、回写状态 |
+| HTTP `/mk/getFlowBillData` | 索赔等业务的审批回调（`@PassToken`） |
+| Redis | 缓存 / 会话工具 |
+| RabbitMQ | 应用日志生产者；消费者基本注释掉 |
+
+本仓 **没有** Spring Cloud Gateway、Sentinel、Seata、Kafka。网关若存在，是部署层的事。
+
+## 认证分层
+
+浏览器走 JWT（Header `token`，`AuthenticationInterceptor`，`@PassToken` 放行看板等接口）。系统间另有签名拦截器和 Feign 系统号，见 [接口签名](./security.mdx)。
