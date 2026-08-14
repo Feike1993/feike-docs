@@ -1,0 +1,44 @@
+---
+sidebar_position: 8
+title: 要点复盘
+description: 能力概要、实现对照与设计问答
+---
+
+# 要点复盘
+
+## 能力概要
+
+IPD 是研发运营单体（Boot 3.5，Java 21，Nacos）。项目与任务落在 PostgreSQL；立项/变更/试产/问题用 `FlowCallbackFactory` 按表名接流程中心；行权限写授权表并由拦截器改 SQL；钉钉催办与机器人在独立包；OA 评审读 Oracle，PLM 零件读 SQL Server。幂等是 Redis `SET NX`；Excel 导入是暂存消歧。2023 年 7 月上线后按单据类型加策略类扩展审批，而不是改流程中心。
+
+## 能力点 ↔ 实现
+
+| 文档口径 | 代码落点 | 容易忽略的细节 |
+| --- | --- | --- |
+| Boot 3 + Nacos | `IpdApplication`、`application.yml` | 单模块，不是仓内微服务拆分 |
+| 项目 / 任务 | `IpdDataController`、`IpdTaskController` | 模板铺任务 + 导入 |
+| 审批策略 | `FlowBackServiceImpl.getFactory` | 约 11 个 Factory；无物料申请/质量评审类 |
+| 行权限 | `getRowPermitElementsByData`、`DataScopeInterceptor` | 权限中心算元素，IPD 落库改 SQL |
+| 列 / 按钮 Feign | `BasePermissionClient` | 列 API 几乎无业务调用 |
+| 项目字段权限 | `IpdResourceAuthority*` | 状态、预算等字段级 |
+| 钉钉 | `RobotPrivateMessageService`、JOB | 常经钉钉服务中转 |
+| 三数据源 | `@DS("ipd/master/plm")` | 切库，非分布式事务 |
+| 幂等 | `IdempotentRedisDAO.setIfAbsent` | 非 Lua；现网少用 SpEL 键 |
+| Excel 导入 | `ImportTaskListener` + 暂存 | 无 SSE 进度 |
+| LIKE 转义 | `MyInterceptor` | 只处理带 like 的 query |
+
+## 设计问答
+
+**为什么审批用策略类而不是流程中心写死业务？**  
+流程中心管节点和人；业务状态、标题、能否提交在 IPD。新单据加 Factory 即可插拔，旧 OA `/mk` 仍留给历史问题单。
+
+**为什么权限不全部做在 IPD？**  
+组织/角色/菜单是公司统一中心。IPD 只解决「这张研发单据谁能看见、项目上哪个字段能改」。列权限接口预留了，业务还没铺开。
+
+**幂等为什么不用 Lua？**  
+单键 `SET NX` 足够挡住连点提交。要复合条件再上 Lua；现网两个接口用默认 MD5 键即可。
+
+**三库会不会一起提交？**  
+不会按 Seata 来。项目在 PG，评审列表切 Oracle，零件切 SQL Server，是查询/同步边界，不是一笔本地事务打三库。
+
+**导入为什么要 dataId？**  
+Excel 里人名对不上账号时不能直接落任务。先暂存再消歧，比一次导入失败整表回滚更适合业务。
