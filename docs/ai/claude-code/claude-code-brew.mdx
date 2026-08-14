@@ -1,0 +1,112 @@
+---
+sidebar_position: 2
+title: Homebrew cask（实测成功）
+description: 国内 Mac 用 brew install --cask claude-code：仅系统代理时升级失败，开启虚拟网卡后升到 2.1.223
+---
+
+# Homebrew cask（实测成功）
+
+本机检查、终端、系统代理与 `https_proxy` 见 [原生安装器](./claude-code-native.mdx)。另外一条路径：[npm 全局安装（推荐，本机未测）](./claude-code-npm.mdx)。
+
+:::tip[本机实测成功]
+2026-08-14：开启虚拟网卡（TUN）后，`brew upgrade claude-code` 将本机从 `2.1.139` 升到 **`2.1.223 (Claude Code)`**。
+:::
+
+:::caution[未开虚拟网卡时失败]
+同一天、只开系统代理或只 `export https_proxy=http://127.0.0.1:7897` 时，升级打 `downloads.claude.ai` 报 `SSL_ERROR_SYSCALL`，和第 4 步原生 `| bash` 同一域名。
+:::
+
+## 命令
+
+稳定频道（大约落后一周，会跳过有严重回退的版本）：
+
+```bash
+brew install --cask claude-code
+```
+
+已安装时升级：
+
+```bash
+brew upgrade claude-code
+```
+
+追新用 `claude-code@latest`。不要和稳定频道同时装两份。
+
+## 本机时间线
+
+2026-05-21 15:23 用 Homebrew cask **装上过** `2.1.139`（`installed_on_request`）。当时公式的下载域是 Google Cloud Storage：
+
+```text
+storage.googleapis.com/claude-code-dist-…/claude-code-releases/
+```
+
+当前官方 cask 已改为：
+
+```text
+https://downloads.claude.ai/claude-code-releases/<version>/darwin-arm64/claude
+```
+
+所以今天再 `brew upgrade`，走的已经不是当年那条 GCS，而是和原生安装器相同的 `downloads.claude.ai`。
+
+未开虚拟网卡时的失败（升级 `2.1.139` → `2.1.223`）：
+
+```text
+Error: Download failed on Cask 'claude-code' with message: Download failed:
+https://downloads.claude.ai/claude-code-releases/2.1.223/darwin-arm64/claude
+curl: (35) LibreSSL SSL_connect: SSL_ERROR_SYSCALL in connection to downloads.claude.ai:443
+```
+
+那时 **2.1.139 还在**，升级失败不会卸掉已装版本。
+
+## 成功条件：虚拟网卡已启用
+
+本机在代理软件里打开 **虚拟网卡模式**（界面提示「TUN 模式已启用，应用将通过虚拟网卡访问网络」）之后，Homebrew 用的 `curl` 不再只靠 shell 里的 `https_proxy`，下载域 TLS 才能握完。
+
+<div className="docScreenshotWide">
+
+![虚拟网卡模式已启用](/img/ai/claude-code-macos/08-brew-tun.png)
+
+</div>
+
+本文只记录实测时开关已打开，不写如何安装「服务模式」。
+
+开启后再执行：
+
+```bash
+brew upgrade claude-code
+```
+
+验证：
+
+```bash
+command -v claude
+claude --version
+```
+
+本机成功输出：
+
+```text
+2.1.223 (Claude Code)
+```
+
+<div className="docScreenshotWide">
+
+![claude --version 显示 2.1.223](/img/ai/claude-code-macos/06-claude-version.png)
+
+</div>
+
+`command -v` 应指向 `/opt/homebrew/bin/claude`。Apple Silicon 上该目录一般已在 PATH 里。
+
+更完整的只读诊断：
+
+```bash
+claude doctor
+```
+
+登录步骤见 [原生篇](./claude-code-native.mdx)。已装好、只想改用 DeepSeek 等兼容接口时，不必再装一份，见 [npm 篇的环境变量](./claude-code-npm.mdx)。
+
+## 参考
+
+- [Homebrew](https://brew.sh)
+- [Claude Code Advanced setup](https://code.claude.com/docs/en/setup)
+- [原生安装器（实测失败）](./claude-code-native.mdx)
