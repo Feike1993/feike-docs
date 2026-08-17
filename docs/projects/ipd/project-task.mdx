@@ -1,0 +1,34 @@
+---
+sidebar_position: 3
+title: 项目与任务
+description: ipd_data 项目主数据、任务树、模板与导入
+---
+
+# 项目与任务
+
+研发管理的主干是 **项目主数据 + 任务执行**。立项、变更、试产都挂在项目上；周报、工时、交付物挂在任务上。
+
+## 项目 `ipd_data`
+
+`IpdDataController` 覆盖项目 CRUD、成员、状态、预算相关字段、模板生成任务等。配套：
+
+- 立项：`IpdProjectApproval*`，流程表名 `cpkf`（产品开发）、`jcyj`（基础研究）
+- 子项目：`ipd_project_children`
+- 模板 / 目标：`IpdDataTemplate*`、`IpdDataTarget*`
+- 首页聚合：`HomeController`
+
+项目状态、总预算等字段还会走项目资源权限（见 [权限体系](./permission.mdx)），不是纯 CRUD。
+
+## 任务
+
+`IpdTaskController` + `IpdTaskServiceImpl`（`@DS("ipd")`）：任务树、里程碑、基线、交付物、工时。任务提交审批走 `IpdTaskFactory`（`tableName = ipd_task`）。
+
+另有协同侧 `IrpTask*`（智研任务），和主任务域分开，定时任务会推钉钉。
+
+## 从模板到导入
+
+新建项目可按模板铺任务。批量导入走 EasyExcel：`IpdTaskImportController` → `ImportTaskListener` → 暂存表 → 同名人员消歧 → 落正式任务。细节见 [幂等与导入](./reliability.mdx)。需求、问题、工程变更内容也有类似导入，不是单独的报表引擎。
+
+## 和审批的关系
+
+项目变更、任务、立项都不是在 Controller 里写死下一节点，而是单据保存后进流程中心，回调时按表名找 Factory。业务字段仍在 PostgreSQL 项目/任务表。

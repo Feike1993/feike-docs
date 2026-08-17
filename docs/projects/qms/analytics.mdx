@@ -1,0 +1,39 @@
+---
+sidebar_position: 4
+title: Doris 分析查询
+description: 客诉看板如何读 Doris ADS，以及 ClickHouse 遗留路径
+---
+
+# Doris / ClickHouse 分析查询
+
+客诉看板要按天、按产品类型拉汇总。热路径已经切到 Doris；本服务是 **ADS 表的查询客户端**，不在本仓构建实时数仓或写入链路。
+
+## 实际查询
+
+`KSViewController.getWQHByDay` 不再走旧 ClickHouse 方法（已注释），改为 `KSViewServiceImpl.getWQHByDayByDoris`。
+
+`WQuestionHandleAdsAllServiceImpl` 标 `@DS("doris")`，Mapper 查：
+
+```sql
+select * from ODS.W_QUESTION_HANDLE_ADS_ALL
+where data_day = #{dataDay}
+-- 或 data_day 区间 + 可选 product_type
+```
+
+表字段包括 `total_am`、`product_type`、`s_type1~3` 等已汇总列。QMS 按 `data_day` 过滤后给前端画看板，**不再在 Java 里扫客诉明细做全量聚合**。
+
+「秒级」来自上游把日汇总算进 ADS，加上 Doris 列存点查，不是 QMS 对 PostgreSQL 历史单做实时 OLAP。
+
+## ClickHouse 还在不在
+
+`@DS("click")`、ClickHouse JDBC、`WQuestionHandleAdsServiceImpl` 仍在。客诉 Controller 已切 Doris，ClickHouse 视为 **同一 ADS 概念的遗留并行路径**，方便对照切库过程，不要写成双活数仓。
+
+## 和 IME 测点 Doris 的差别
+
+[IME](/docs/projects/ime/storage) 那侧是 mqtt-client 双写 Kafka，Routine Load 进 `device_item_uni` / `dup`。QMS 客诉 ADS 表名、ETL 都不在 `narada-qms-server`。两边都是「业务服务读 Doris」，写入拓扑不是同一套。
+
+## 边界
+
+- 本仓没有 Flink / Kafka / Routine Load 作业
+- 没有在应用内建物化视图或调度灌数
+- 动态数据源的 Doris 连接在 Nacos，本地 `application-test.yml` 往往只露出 PostgreSQL master

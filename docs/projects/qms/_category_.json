@@ -1,0 +1,9 @@
+{
+  "label": "QMS 质量管理系统",
+  "position": 3,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "description": "从技术角度拆解 QMS 质量管理系统：报表与看板、Doris 分析查询、工作流与 SAP、接口签名、AI 知识库对接。代码对照 narada-qms-server。"
+  }
+}

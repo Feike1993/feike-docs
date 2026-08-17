@@ -1,0 +1,63 @@
+---
+sidebar_position: 1
+title: 项目总览
+description: QMS 质量管理系统的背景、职责、技术栈与代码边界
+---
+
+# 项目总览
+
+**QMS 质量管理系统**是南都质量运营后台：把来料检验、过程直通率、客诉、计量、QC 活动串成可统计、可审批、可对接 ERP / 流程中心 / AI 知识库的一套服务。仓库描述为「南都质量报表系统」，代码在单体后端 `narada-qms-server`。
+
+| 项 | 内容 |
+| --- | --- |
+| 角色 | 核心开发 |
+| 时间 | 2023.07 – 至今 |
+| 职责 | 系统架构、核心模块、AI 对接与全流程落地，协同完成各质量域建设 |
+| 成果 | 全链路质量管控场景覆盖（来料 / 过程 / 客诉为主），报表与看板稳定运行 |
+
+## 一句话定位
+
+本仓是 **Spring Boot 2.2 / Java 8 单体**（HTTP 8382，gRPC 3332，注册到 Nacos），不是 Boot 3 微服务网。前端、Doris ETL、SAP JCo、向量检索引擎都不在这个仓库里。
+
+## 业务域地图
+
+| 域 | 本仓有什么 | 本仓没有什么 |
+| --- | --- | --- |
+| 来料质量 IQC | 检验台账、一次合格率、供应商绩效、索赔 | 独立抽样方案引擎 |
+| 过程质量 | 检查台账、直通率/合格率看板、不良报废、问题跟踪 | 经典 IPQC 工单产品 |
+| 客诉 | 受理明细 + ADS 看板 | — |
+| 计量 | 器具台账、校准、转移、报废 | — |
+| 质量改进 | QC 小组/项目、问题立项、飞行监察 | 独立 8D 引擎 |
+| 出货 OQC / FQC | — | **无独立模块** |
+
+## 文档口径不要夸的几件事
+
+对照实现时按「本仓实际做了什么」写：
+
+- 报表 = MyBatis 聚合 + EasyExcel，不是通用报表引擎产品
+- Doris = 查预聚合 ADS 表，本仓不跑 Flink / Routine Load
+- 工作流 = gRPC 服务端 + 索赔 HTTP 回调；客户端连接池是模板代码
+- SAP = HTTP 调中间件 RFM，不是进程内 JCo
+- AI = 台账字段同步到外部知识库 + 跳转 Agent，检索在 AIKB
+
+## 技术栈（本仓 POM / bootstrap）
+
+| 层 | 选型 |
+| --- | --- |
+| 运行时 | Java 8，Spring Boot 2.2.1，Spring Cloud Hoxton.SR8 |
+| 注册配置 | Nacos Discovery + Config |
+| 持久化 | MyBatis-Plus 3.5.1，dynamic-datasource（master / doris / click） |
+| 主库 | PostgreSQL |
+| 分析库 | Doris（MySQL 协议）、ClickHouse（遗留并行路径） |
+| 集成 | OpenFeign（HR / 权限）、gRPC server 3332、Hutool HttpRequest |
+| 其他 | Redis / Redisson、RabbitMQ 应用日志、EasyExcel、阿里云 OSS、JWT |
+
+## 文档怎么读
+
+- [整体架构](./architecture.mdx)：单体包结构与数据源
+- [报表与质量看板](./reports.mdx)：IQC / 过程看板与导出
+- [Doris 分析查询](./analytics.mdx)：客诉 ADS，谁做聚合
+- [工作流与 SAP](./integration.mdx)：gRPC、OA 回调、RFM、MES
+- [接口签名](./security.mdx)：排序 + MD5 + 时间窗
+- [AI 知识库对接](./ai.mdx)：向量同步与 skipAgent
+- [要点复盘](./recap.mdx)：能力对照与设计问答
