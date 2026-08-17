@@ -14,6 +14,7 @@ description: FlowCallbackFactory 按 tableName 路由十余种单据
 - `getLastVersionData`：审批人看到的最新业务包
 - `updateByFlow`：节点流转时回写业务状态
 - `getFlowTitle`：流程标题
+- `setBillButtonStatus`：流程按钮权限控制
 
 ## 路由表（BPM）
 
@@ -34,7 +35,7 @@ description: FlowCallbackFactory 按 tableName 路由十余种单据
 
 另有 MK/OA 路径 `IpdIssuesCallback`（`ipd_issues`），接口在 `com.nd.mk.service.FlowCallbackFactory`，是旧问题流。
 
-合计约 **11** 个策略类。`BillDataEnum` 里还有更多立项变体，可共享同一 Factory。
+BPM 路由共 **10** 个 Factory，加上 MK 旧路径的 `IpdIssuesCallback`，合计 **11** 个策略类。`BillDataEnum` 里还有更多立项变体，可共享同一 Factory。
 
 ## 和「物料申请 / 质量评审」的差别
 

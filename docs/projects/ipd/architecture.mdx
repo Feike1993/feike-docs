@@ -6,7 +6,7 @@ description: IPD 单体包结构、Nacos、Feign 与三数据源
 
 # 整体架构
 
-入口 `IpdApplication`：`@EnableDiscoveryClient`、`@EnableFeignClients`、`@EnableRedisHttpSession`。端口 **8099**，配置从 Nacos `narada-ipd-server.yaml` 导入。Feign 底层开了 OkHttp。
+入口 `IpdApplication`：`@EnableDiscoveryClient`、`@EnableFeignClients`、`@EnableRedisHttpSession`。端口 **8099**，配置从 Nacos `narada-ipd-server.yaml` 导入。Feign 底层是 Apache HttpClient（POM 只引 `feign-httpclient`，yml 的 `feign.okhttp.enabled` 因缺 `feign-okhttp` 不生效）。
 
 ```mermaid
 flowchart LR
@@ -30,7 +30,7 @@ flowchart LR
   ipd --> ding
 ```
 
-和 [QMS](/docs/projects/qms/overview) 同属 Narada 业务模板族（Feign HR/权限、BPM 回调），但 IPD 已升到 Boot 3 / Java 21。和 [IME](/docs/projects/ime/overview) 不同：IME 是采集监控多服务，IPD 是研发运营单体。
+和 [QMS](/docs/projects/qms/overview) 同属 Narada 业务模板族（Feign HR、权限中心、BPM 回调），但 IPD 已升到 Boot 3 / Java 21。和 [IME](/docs/projects/ime/overview) 不同：IME 是采集监控多服务，IPD 是研发运营单体。
 
 ## 包怎么切
 
@@ -64,9 +64,10 @@ com.nd
 
 | 方式 | 对象 |
 | --- | --- |
-| OpenFeign 固定 url | `BasePermissionClient`、`BaseHrClient` |
-| HTTP | `narada-flow-server`、钉钉服务、SAP 中间件、预算 |
+| OpenFeign 固定 url | `BaseHrClient`（HR 要人/组织） |
+| HTTP | 权限中心（`BasePermissionClientUtil`）、`narada-flow-server`、钉钉服务、SAP 中间件、预算 |
 | Redis | Session + 幂等键 |
+| RabbitMQ | 应用日志（`AppLogProducer`） |
 | XXL-JOB | 任务超时、IRP、角色变更等定时 |
 
-本仓没有 Gateway / Sentinel / Seata 模块。
+本仓没有 Gateway / Sentinel / Seata 模块。`BasePermissionClient` 虽标了 `@FeignClient`，业务里没注入它——权限中心调用实际走 `BasePermissionClientUtil` 的 Hutool HTTP，真正走 Feign 的只有 `BaseHrClient`。

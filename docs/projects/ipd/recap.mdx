@@ -16,9 +16,9 @@ IPD 是研发运营单体（Boot 3.5，Java 21，Nacos）。项目与任务落�
 | --- | --- | --- |
 | Boot 3 + Nacos | `IpdApplication`、`application.yml` | 单模块，不是仓内微服务拆分 |
 | 项目 / 任务 | `IpdDataController`、`IpdTaskController` | 模板铺任务 + 导入 |
-| 审批策略 | `FlowBackServiceImpl.getFactory` | 约 11 个 Factory；无物料申请/质量评审类 |
-| 行权限 | `getRowPermitElementsByData`、`DataScopeInterceptor` | 权限中心算元素，IPD 落库改 SQL |
-| 列 / 按钮 Feign | `BasePermissionClient` | 列 API 几乎无业务调用 |
+| 审批策略 | `FlowBackServiceImpl.getFactory` | 10 个 BPM Factory + 1 个 MK 回调；无物料申请/质量评审类 |
+| 行权限 | `getRowPermitElementsByData`、`DataScopeInterceptor` | 权限中心算元素走 HTTP，IPD 落库改 SQL |
+| 列 / 按钮 Feign | `BasePermissionClient` | 业务里零调用，停在接口定义 |
 | 项目字段权限 | `IpdResourceAuthority*` | 状态、预算等字段级 |
 | 钉钉 | `RobotPrivateMessageService`、JOB | 常经钉钉服务中转 |
 | 三数据源 | `@DS("ipd/master/plm")` | 切库，非分布式事务 |

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 5
 title: 权限体系
-description: 行授权、项目资源字段权限与权限中心 Feign
+description: 行授权、项目资源字段权限与权限中心集成
 ---
 
 # 权限体系
@@ -10,7 +10,7 @@ description: 行授权、项目资源字段权限与权限中心 Feign
 
 ## 行权限（主路径）
 
-1. 保存项目/任务等 → `BillDataGrantHelps` / `GrantServiceImpl` 调 Feign `getRowPermitElementsByData`
+1. 保存项目/任务等 → `GrantServiceImpl` → `BillGrantHelps` → `BillDataGrantHelps`，用 Hutool HTTP 调权限中心 `getRowPermitElementsByData`（不是 Feign）
 2. 结果写入 `BillGrantUserBase` 一类授权表
 3. 列表查询走 `DataScopeInterceptor`，把 `${dataScopeParam_*}` 换成 `bill_code in (...)`
 
@@ -18,12 +18,12 @@ description: 行授权、项目资源字段权限与权限中心 Feign
 
 ## 列权限与按钮
 
-`BasePermissionClient` 有：
+`BasePermissionClient`（`@FeignClient`）声明了：
 
 - `getColPermitColsByData` 列权限
 - `getButtonPermitByAccount` 按钮权限
 
-列权限在业务 Service 里几乎没有调用点，能力停在 Feign 客户端。按钮/菜单树主要在权限中心和 SSO，IPD 不维护完整菜单引擎。
+这几个 Feign 方法在业务里**零调用**，能力停在接口定义；权限中心的实际调用走 `BasePermissionClientUtil`（Hutool HTTP），其中列/按钮两个接口同样没有业务调用点。按钮/菜单树主要在权限中心和 SSO，IPD 不维护完整菜单引擎。
 
 ## 项目资源字段
 
