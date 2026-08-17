@@ -49,7 +49,7 @@ flowchart LR
 
 ## HR 与权限中心
 
-`BaseHrClient` 要人、组织；`BasePermissionClient` 要行/按钮/枚举。配置 `grant.baseUrl` / `grant.baseHrUrl` 在 Nacos。
+`BaseHrClient`（Feign）要人、组织；权限中心走 `BasePermissionClientUtil` 的 Hutool HTTP（行/按钮/枚举），`BasePermissionClient` 这个 Feign 接口业务里没调用。配置 `grant.baseUrl` / `grant.baseHrUrl` 在 Nacos。
 
 ## PLM 与 SAP
 

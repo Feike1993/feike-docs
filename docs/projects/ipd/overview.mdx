@@ -38,7 +38,7 @@ description: IPD 研发管理的背景、职责、技术栈与代码边界
 - 幂等 = Redis `setIfAbsent`，不是 Lua；SpEL 键解析器有，现网多用默认 MD5 键
 - EasyExcel 导入 = 暂存 + 人员消歧，不是 SSE 百分比进度
 - 审批策略覆盖问题/任务/变更/试产/立项/需求等，不要写成物料申请、质量评审两条独立策略类
-- 列权限 Feign 几乎无业务调用；主路径是行授权 + 项目资源字段权限
+- 权限中心调用走 Hutool HTTP（`BasePermissionClientUtil`），`BasePermissionClient` 这个 Feign 接口业务里没调用；主路径是行授权 + 项目资源字段权限
 
 ## 技术栈（本仓 POM / application.yml）
 
@@ -48,8 +48,8 @@ description: IPD 研发管理的背景、职责、技术栈与代码边界
 | 注册配置 | Nacos Discovery + Config |
 | 持久化 | MyBatis-Plus 3.5.15，dynamic-datasource 4.5.0 |
 | 库 | PostgreSQL（ipd）、Oracle（master/OA）、SQL Server（plm） |
-| 集成 | OpenFeign（OkHttp）、流程 HTTP、钉钉 Stream / 机器人 |
-| 其他 | Redis Session、Redisson、XXL-JOB 2.4.0、EasyExcel 4.0.3 |
+| 集成 | OpenFeign（HttpClient）、HTTP（权限中心 / 流程 / SAP）、钉钉 Stream / 机器人 |
+| 其他 | Redis Session、Redisson、RabbitMQ、XXL-JOB 2.4.0、EasyExcel 4.0.3 |
 
 ## 文档怎么读
 
