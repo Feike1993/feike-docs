@@ -1,0 +1,36 @@
+---
+sidebar_position: 7
+title: 幂等与导入
+description: Redis 幂等注解、EasyExcel 两阶段导入与 LIKE 通配符转义
+---
+
+# 幂等与导入加固
+
+表单重复提交、Excel 脏数据、模糊查询注入，是研发门户最常见的三类问题。本仓用注解幂等、两阶段导入、MyBatis 拦截器分别兜。
+
+## `@Idempotent`
+
+`framework/idempotent`（芋道风格）：
+
+1. 切面解析幂等键
+2. `IdempotentRedisDAO.setIfAbsent`：`StringRedisTemplate.opsForValue().setIfAbsent("idempotent:%s", "", timeout)`
+3. 拿到锁才进方法；异常时可删键允许重试
+
+键解析器有三种：默认（方法+参数 MD5）、按用户、**SpEL `keyArg`**。现网标注例如：
+
+- `IpdDemandManagementController`
+- `IpdDataChangeDemandManagementController`
+
+都是 `@Idempotent(timeout = 5)`，**没有** `keyArg`，走默认键。
+
+所以：防重复提交是真的；「Redis Lua 脚本」和「现网 SpEL 动态键」对不上这段实现。Lua 不在 `IdempotentRedisDAO` 里。
+
+## EasyExcel 两阶段导入
+
+任务导入典型路径：`ImportTaskListener` 同步解析 → 校验失败直接返回 → 成功则写暂存（`IpdTaskImport*`）并返回 `dataId` → 前端处理同名人员 → `importTaskData` 落正式任务。
+
+问题、需求模板、工程变更内容、工时也有 Listener。这是 **同步解析 + 暂存消歧**，不是 Redis 百分比、也不是 SSE 推送进度。若产品文案写「进度回传」，应对齐「导入会话 / dataId」，不要写成实时进度条协议。
+
+## LIKE 转义
+
+`MyInterceptor` 拦截 `Executor.query`：SQL 含 `like` 且参数是 `HashMap` 时，对 LIKE 绑定参数做 `%` / `_` 转义（`EscapeUtil`）。减少用户输入把模糊查询扩成全表。另有 `CharEscapeImpl`。审计字段填充是另一条 `MybatisInterceptor`，不要和 LIKE 拦截混为一谈。

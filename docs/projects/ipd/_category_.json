@@ -1,0 +1,9 @@
+{
+  "label": "IPD 研发管理",
+  "position": 1,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "description": "从技术角度拆解 IPD 研发管理：项目与任务、审批策略、权限、钉钉与跨系统集成、幂等与导入。代码对照 narada-ipd-server。"
+  }
+}

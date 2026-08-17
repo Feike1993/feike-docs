@@ -1,0 +1,47 @@
+---
+sidebar_position: 8
+title: 要点复盘
+description: 能力概要、实现对照与设计问答
+---
+
+# 要点复盘
+
+## 能力概要
+
+QMS 是质量运营单体后端（Boot 2.2，Nacos）。来料检验、过程直通率、客诉、计量、QC 台账落在 PostgreSQL；过程/来料看板是手写统计加 EasyExcel；客诉看板读 Doris 日汇总 ADS。审批上，gRPC 3332 给流程中心通用回调，索赔实际走 HTTP `/mk`。SAP 经中间件调 RFM。服务间 API 用排序参数 + 密钥 MD5 + 5 分钟时间戳。质量问题台账异步同步到外部知识库，检索和 Agent 不在本仓。
+
+## 能力点 ↔ 实现
+
+| 文档口径 | 代码落点 | 容易忽略的细节 |
+| --- | --- | --- |
+| 报表与看板 | `ProcessQualityKanbanController`、`IqcCheck*`、EasyExcel | 不是可配置报表引擎 |
+| Doris 秒级看板 | `WQuestionHandleAdsAll*`、`KSViewController` | 读 `ODS.W_QUESTION_HANDLE_ADS_ALL`，ETL 在仓外 |
+| ClickHouse | `@DS("click")` | 客诉路径已切 Doris，属遗留 |
+| gRPC 工作流 | `RestApiServiceImpl` :3332 | 工厂目前主要是示例单据 |
+| gRPC 客户端池 | `GrpcClientPool` | **无业务调用** |
+| 索赔闭环 | `MkController`、`ClaimFlowCallback` | HTTP 回调，不是 gRPC 出站 |
+| SAP RFC | `SapUtil` → `/common/getSAPData` | RFM 名在 JSON 里，无 JCo |
+| 签名防重放 | `SignAuthInterceptor`、`SignUtil` | MD5 + 5 分钟窗，窗口内可重放 |
+| JWT | `AuthenticationInterceptor` | 人机登录，和大屏 `@PassToken` 分开 |
+| AI 知识库 | `saveVector`、`AiController.skipAgent` | 同步与跳转；检索在 AIKB |
+| 给 MES 的直通率 | `getWeekDirectRateByProcedureId` | QMS 出数，不采 MQTT |
+
+## 设计问答
+
+**为什么是单体而不是拆成质量微服务网？**  
+域都在「质量运营读改同一套台账」，拆服务要先拆库。Nacos 注册是为了进公司统一发现，不等于内部再拆 device/mes 那种网。和 IME 多服务采集平台不是同一形态。
+
+**为什么 SAP 不直连 JCo？**  
+中间件统一账号、超时和表结构转换；QMS 只传 functionName 和字段列表。代价是多一跳 HTTP，超时按分钟级配。说「RFC」指的是对端 RFM，不是本进程加载 sapjco。
+
+**Doris 的聚合谁做？**  
+ADS 表已按 `data_day` 汇总。QMS 负责按天/产品类型查询和展示。全量历史聚合不在这个 JVM 里跑。
+
+**签名窗口 5 分钟够不够？**  
+够挡住时钟偏差和过期包，挡不住窗口内重放。对幂等写接口还要业务层去重。默认 sign URL 带模板遗留，上线要以配置里的真实名单为准。
+
+**gRPC 和 `/mk` 为什么并存？**  
+模板给流程中心留了 gRPC 标准口；索赔等单据先接了 HTTP 回调。两套都要能讲清楚，不要合成「全部走连接池」。
+
+**AI 诊断算 QMS 功能吗？**  
+算集成：数据从问题跟踪台账出，能力在 AIKB。QMS 要保证同步字段完整、删除时向量一并删掉。
