@@ -27,10 +27,12 @@ description: 过程/来料看板、MyBatis 聚合统计与 EasyExcel 导出
 3. `ExcelUtils.export2Web`（EasyExcel 2.1.x）下载
 
 过程质量：`ProcessStandingBookController` 的分页报表与 `exportReportForm`。  
-来料：供应商绩效、处罚报表 `querySupplierReport` / `querySupplierPunishReport`。  
+来料：供应商绩效、处罚报表 `querySupplierReport` / `querySupplierPunishReport`（mapper 层实际是 `getSupplierPunishReport`、`pageSupplierPunishReport`，分属 `IqcCheckMapper`、`ClaimBillsMapper`）。  
 过程问题跟踪：整改率、退回率、区域分布等一串 `*Report` 方法在 `IProcessProductFollowAccountService`。
 
 精度和口径（一次合格率、直通率、目标值）都在各自 Service 里算，改一个指标通常要改 SQL + Java，没有「改模板就出新报表」的引擎层。
+
+分页是两套并存：`ProcessStandingBookController`、`ReviewProblemController` 等走 `PageHelper`（1.3.1），而 `IqcCheckMapper.querySupplierReport` 等走 MyBatis-Plus `IPage`，属历史遗留，不是统一分页。
 
 ## 和 MES 的报表向接口
 

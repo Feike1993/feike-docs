@@ -45,8 +45,8 @@ description: QMS 质量管理系统的背景、职责、技术栈与代码边界
 | 层 | 选型 |
 | --- | --- |
 | 运行时 | Java 8，Spring Boot 2.2.1，Spring Cloud Hoxton.SR8 |
-| 注册配置 | Nacos Discovery + Config |
-| 持久化 | MyBatis-Plus 3.5.1，dynamic-datasource（master / doris / click） |
+| 注册配置 | Nacos Discovery + Config（starter 锁 2021.0.1.0，与 Hoxton.SR8 版本线不对应） |
+| 持久化 | MyBatis-Plus 3.5.1 + PageHelper 1.3.1（双分页并存），dynamic-datasource（master / doris / click），Druid 连接池 |
 | 主库 | PostgreSQL |
 | 分析库 | Doris（MySQL 协议）、ClickHouse（遗留并行路径） |
 | 集成 | OpenFeign（HR / 权限）、gRPC server 3332、Hutool HttpRequest |

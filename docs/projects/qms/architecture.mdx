@@ -73,6 +73,8 @@ Doris 走 MySQL 协议（FE 9030 这类口径），对本服务就是「另一�
 
 本仓 **没有** Spring Cloud Gateway、Sentinel、Seata、Kafka。网关若存在，是部署层的事。
 
+POM 里还有几处**声明了但没用**的依赖：Hystrix（`spring-cloud-starter-netflix-hystrix`，无 `@EnableHystrix` / `@HystrixCommand`）、Unirest、`spring-boot-starter-mail`、thymeleaf、`kotlin-stdlib`。这些不是运行时能力，别当成在用；Doris 走 MySQL 协议靠 `mysql-connector-java` 驱动，连接串在 Nacos。
+
 ## 认证分层
 
 浏览器走 JWT（Header `token`，`AuthenticationInterceptor`，`@PassToken` 放行看板等接口）。系统间另有签名拦截器和 Feign 系统号，见 [接口签名](./security.mdx)。
