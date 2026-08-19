@@ -1,0 +1,57 @@
+---
+sidebar_position: 1
+title: IntelliJ 启动未加载 .env
+description: Spring Boot 用 gradlew bootRun 能读 .env，但 IntelliJ Run 读不到时，用 EnvFile 插件注入环境变量
+---
+
+# IntelliJ 启动未加载 .env
+
+Spring Boot 项目用 `./gradlew bootRun` 能读到项目根目录的 `.env`，在 IntelliJ IDEA 里点运行 / 调试却缺变量。这是两条启动路径不同，不是 `.env` 写错了。
+
+## 现象
+
+- 终端执行 `./gradlew bootRun`：环境变量齐全，应用正常启动。
+- IDE 对 Spring Boot 主类（如 `AiExampleApplication`）直接 **运行 / 调试**：缺少 `.env` 里的 API Key、数据源等变量，启动失败或行为异常。
+
+## 原因
+
+`bootRun` 走的是 **Gradle 任务**。项目里通常用 Gradle 插件或脚本，在进程启动前把 `.env` 注入到 JVM 环境。
+
+IDE 的 Spring Boot Run Configuration 默认是 **直接起 JVM**，不经过 Gradle 那套 env 注入，因此不会自动读项目根目录的 `.env`。
+
+## 解决步骤
+
+用 JetBrains 插件 **EnvFile**，在运行配置里显式挂上 `.env`。
+
+### 1. 安装 EnvFile
+
+1. 打开 **Settings / Preferences → Plugins → Marketplace**
+2. 搜索 `EnvFile` 并安装
+3. 重启 IDE
+
+### 2. 在运行配置中启用
+
+1. 打开 **运行/调试配置**
+2. 选中对应的 Spring Boot 配置（例如 `AiExampleApplication`）
+3. 勾选 **Enable EnvFile**
+4. 在文件列表中添加项目根目录的 `.env`，类型选 `.env`，并勾选该行的 **Enabled**
+
+   `.env` 以点开头，是隐藏文件，文件选择器默认列不出来。打开选择文件对话框后，按 `⌘⇧.`（Command + Shift + `.`）显示隐藏文件，再选中 `.env`。
+
+5. 点击 **应用**，再重新运行 / 调试
+
+<div className="docScreenshotWide">
+
+![IntelliJ 运行配置：Enable EnvFile 并勾选 .env](/img/tech-stack/intellij-envfile/01-run-config-envfile.png)
+
+</div>
+
+要点：
+
+- **Enable EnvFile** 是总开关，不勾选则下面的文件列表不生效
+- 路径填 `.env`（相对项目根目录）即可；确认该行 **Enabled** 已勾选
+- 不必打开「Substitute Environment Variables」等实验选项，默认关闭即可
+
+## 小结
+
+命令行 `bootRun` 和 IDE Run 是两套启动路径。前者会走 Gradle 的 env 注入，后者不会。在 IntelliJ 里给 Spring Boot 运行配置装上 EnvFile，并启用项目根目录的 `.env`，两边就能读到同一套环境变量。
