@@ -83,7 +83,7 @@ flowchart LR
 
 ## 和 MES / OEE 的边界
 
-- **MES**：过程数据、过站、PQC 质检。测点展示走 Doris `device_item_uni` / `device_item_dup`；限值走 device 的采集项配置。Kafka 在 MES 里另有过站时间等业务 Topic，不是 IME 测点通道。
+- **MES**：过程数据、过站、PQC 质检。测点展示走 Doris `device_item_uni` / `device_item_dup`；限值走 device 的采集项配置。MES 有自己的一套 Kafka 业务 Topic（`pqc_check_*`、`history_pqc_check_*`、`fat_stack_item_*`、`app_log_dup` 等），过站数据走 DB 查询而非 Kafka；但 MES 的 `DeviceItemDupController.process()` 历史回填也会写 `device_item_uni/dup`，并非完全不碰测点通道。
 - **OEE**：班次人工填报后算时间稼动、性能、合格率。不订阅 MQTT。
 - **设备状态看板**：`narada-cloud-device` 的 REST，轮询 `device_online`，不是 WebSocket/SSE 推测点。
 

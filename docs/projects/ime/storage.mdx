@@ -20,7 +20,7 @@ description: 为何测点走 Doris Routine Load，而不是 InfluxDB 或 TDengin
   → MES MyBatis @DS("doris")
 ```
 
-看板要「现在在不在线」读关系库；MES 要「这台设备当前测点」和「某时段过程曲线/明细」读 Doris。Routine Load 由 `DorisJobHandler.dorisRoutineLoad` 小时级巡检：`PAUSED` 则 `RESUME`，`CANCELLED` 只上报。
+看板要「现在在不在线」读关系库；MES 要「这台设备当前测点」和「某时段过程曲线/明细」读 Doris。Routine Load 由 `DorisJobHandler.dorisRoutineLoad` 小时级巡检：`PAUSED` 则 `RESUME`，`CANCELLED` 只上报。作业定义（`CREATE ROUTINE LOAD`、topic→表映射）在 Doris 侧配置，本仓只有 `SHOW / PAUSE / RESUME / STOP` 运维代码，无 DDL 可核验。
 
 查询形态来自 `DeviceItemDupMapper.xml`：按 `device_code + factory_code` 取 `device_item_uni` 最近 20 条；按 `op_time` 时间窗扫 `device_item_dup`；带工序、班次、工厂等业务维。这是 **OLAP SQL**，不是 Grafana 上画一条电压曲线。
 
@@ -32,7 +32,7 @@ description: 为何测点走 Doris Routine Load，而不是 InfluxDB 或 TDengin
 
 **MES 不用换查询栈。** Doris 走 MySQL 协议，现有 MyBatis、动态数据源、导出接口几乎零改造。InfluxQL / Flux 会把 Java 报表和权限过滤重写一遍。
 
-**一份引擎兼仓。** 测点、PQC、FAT 都进 Doris，避免「时序一套、数仓一套」。Influx 不适合当 Oracle 质检历史的迁移目标（边端 `DorisSnServiceImpl` 的路径是 Oracle → Kafka → Doris）。
+**一份引擎兼仓。** 测点、PQC、FAT 都进 Doris，避免「时序一套、数仓一套」。Influx 不适合当 Oracle 质检历史的迁移目标（边端 `DorisSnServiceImpl` 把 Oracle 质检历史推到 Kafka `history_pqc_check_*`，Kafka→Doris 由下游 Routine Load 完成；MES 侧同名类里还残留直接 Oracle→Doris 的旧实现）。
 
 **多维过滤是 MPP 列存强项。** 工厂 × 工序 × 班次 × 设备 × 测项一起 WHERE / GROUP BY。Influx 把设备码、测项名当高基数 tag，容易 series explosion。
 

@@ -37,9 +37,9 @@ flowchart TB
 | --- | --- | --- | --- |
 | TCP 探测 | `0` TCP-探测 | `$queue/tcp_monitor_device_netWork` | JSON 反序列化为 `DeviceOnline` |
 | KepServer | `1` KEPSERVER | `$queue/hx_one` | `values[]` 的 `id/v/q/t`；`q=false` 丢弃 |
-| 工业网关 | `2` 网关 | `ReportRtData`、`DeviceConnectionStatus` 等 | `pld.array[].datas`；部分报文要 ACK 回写 |
+| 工业网关 | `2` 网关 | `ReportRtData`、`DeviceConnectionStatus`、`ReportHistData` | `ReportRtData` 读 `pld.array[].datas` 并回 `ReportRtDataAck`；`DeviceConnectionStatus` 读 `pld.deviceIds[].deviceId/result`、不回 ACK |
 
-KepServer 点位 `id` 按 `.` 拆：设备编码 + `_Error` / `fault` / `working`，分别落到联网、故障、运行。`_Error` 的布尔是反的：**true = 离线（status_value=1），false = 在线（0）**。
+KepServer 点位 `id` 按 `.` 拆：第 2 段（`idArray[1]`）是设备编码；第 3 段 `working` / `fault` 分别落到运行、故障；联网离线要第 3 段 `_System` + 第 4 段 `_Error` 同时命中。`_Error` 是「故障标志」，**true → 离线（status_value=1），false → 在线（0）**（代码里是 `value ? 1 : 0` 直接映射，不是取反）。
 
 统一出口：`DeviceOnlineServiceImpl.addDeviceOnline(entity, gatherType)`。测点不走这条路径。
 

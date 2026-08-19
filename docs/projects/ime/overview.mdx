@@ -15,9 +15,13 @@ description: IME 数据采集与监控平台的背景、职责、技术栈与代
 | 职责 | 架构设计、核心开发、集群部署、性能优化与跨系统集成，带团队从 0 到 1 落地 |
 | 成果 | 分布式架构可横向扩展，支撑 2000+ 设备并发接入，日处理数据量过亿，长期稳定运行 |
 
+> 注：表里「2000+ 设备」「日处理量过亿」是历史运营口径，代码库中无可直接核验的配置或常量支撑，属运营数据，不作为可从源码推出的结论。
+
 ## 一句话定位
 
 IME 是部署品牌（网关入口如 `ime-api`），不是单一 Maven 模块。**采集与监控 = 云端 `narada-cloud-device` + 工厂边端 `mqtt-client`**；MES / OEE / WMS / 系统服务是同一产品伞下的兄弟模块。
+
+> 边界提示：`narada` 顶层除 `narada-cloud-parent` 与 `mqtt-client` 外，还有 `narada-ipd-server`、`narada-it-server`、`narada-mes-job`、`narada-qms-job`、`narada-qms-server`、`nddy`、`narada-admin-management-server` 等独立仓，同属产品伞但不在本文「采集监控」范围。
 
 ## 要先分清的两套代码
 
@@ -29,6 +33,8 @@ IME 是部署品牌（网关入口如 `ime-api`），不是单一 Maven 模块�
 | `mqtt-client` | 独立 Spring Boot 边端。共享订阅消费测点 MQTT，双写 Kafka 进 Doris，状态写入工厂 Oracle + Redis |
 
 文档里常写的高并发亮点（双 Kafka、IO/CPU 线程池、自适应批次、Oracle → Doris）主要在 `mqtt-client`；云端 device 服务负责状态归一、看板和 TPM 闭环。
+
+> 实现提醒：`DeviceOnlineServiceImpl`、`KafkaServiceImpl`、`ExecutorConfig`、`DorisSnController` 等类在 `mqtt-client` 与云端（`narada-cloud-device` / `narada-cloud-mes`）里各有一份**同名并行实现**，逻辑并不完全一致（如 `addDeviceOnline` 云端回写台账 `gather_type`，边端写工厂 Oracle + Redis + 可选 Rabbit 回传）。核对代码时要落到具体仓，不要按类名混看。
 
 ## 业务从哪来、到哪去
 
