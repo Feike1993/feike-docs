@@ -22,7 +22,7 @@ description: 设备三态状态机、连通性看板、XXL 聚合与 TPM 保养�
 
 ## 写入状态机
 
-`DeviceOnlineServiceImpl.addDeviceOnline`（`READ_COMMITTED`）：
+`DeviceOnlineServiceImpl.addDeviceOnline`（`READ_COMMITTED`，**这是云端 `narada-cloud-device` 的版本**）：
 
 1. 缺 `deviceCode` / type / value 直接返回
 2. 查当前行：没有则 insert；有则 **仅当新 `gatherTime` 更晚** 才更新，挡住乱序/重放
@@ -31,7 +31,7 @@ description: 设备三态状态机、连通性看板、XXL 聚合与 TPM 保养�
 
 PLC 心跳很碎，这样不会把历史表打成「每秒一行」。日级时长、切换次数由 XXL `processingDeviceStatusTime` / `processingDeviceStatusNumber` 从历史段归并到 `DEVICE_STATUS_TIME`，供开机率月报。
 
-边端还会把当前行写入 Redis `device:now:status::...`，TTL 一天。总部同步开关 `narada.deviceOnlineSync` 在常见 profile 里是关的，需要时才往 Rabbit `device_online` / `device_online_history` 丢。
+边端 `mqtt-client` 里另有一份同名 `DeviceOnlineServiceImpl.addDeviceOnline`，逻辑不同：把测点里的 `run_status` / `fault_status` / `networking_status` 写**工厂 Oracle** `DEVICE_ONLINE` + 同步历史表 + 写 Redis `device:now:status::...`（TTL 一天）。总部同步开关 `narada.deviceOnlineSync` 在常见 profile 里是关的，需要时才往 Rabbit `device_online` / `device_online_history` 回传云端。两份同名类各自演进，口径要按仓分别核对。
 
 ## 连通性看板
 
@@ -39,9 +39,9 @@ PLC 心跳很碎，这样不会把历史表打成「每秒一行」。日级时�
 
 口径：
 
-- 已联网设备：`device_ledger.NETWORKING = 1`
+- 已联网设备：`device_ledger.NETWORKING = 1 AND del_flag = 0 AND property_status IN (1,2)`
 - 当前在线：`status_type = 3 AND status_value = 0`
-- 开机率：在线数 / 已联网数，百分比两位小数
+- 开机率：在线数 × 100 / 已联网数，保留两位小数（HALF_UP）
 
 实现分两阶段，避免 Feign 登录上下文丢到公共线程池：
 
@@ -64,7 +64,7 @@ PLC 心跳很碎，这样不会把历史表打成「每秒一行」。日级时�
 | --- | --- |
 | 保养 | 方案周期/定时 → `updateSchemeNextDate`、`createTask` 生成任务；钉钉/站内信 |
 | 点检 | 方案绑定设备；`monitorDeviceCheckStatus` 按工厂字典看班次完成情况 |
-| 维修 | `maintain_manage` / `maintain_part`，故障分类 `fault` |
+| 维修 | `maintain_manage` / `maintain_part`；故障分类 `fault_classify`（`fault` 是故障管理） |
 | 模具 | `MOLD_BASE`、`MOLD_PRODUCE_LOG` |
 
 多工厂靠 `TenantContext` 与台账上的工厂编码。OEE 微服务是另一条「人工填报效率」线，不要和这里的自动三态混讲。

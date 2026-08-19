@@ -40,9 +40,9 @@ flowchart LR
 1. 回调只把 payload 放进 `LinkedBlockingQueue`，立刻返回，避免堵住 mica-mqtt I/O 线程
 2. 构造时提交单线程 `sendData()` 循环 `take()`
 3. `processMessage` 里对一条 MQTT 里的多个测项 `CompletableFuture.runAsync(..., ioPool)`，状态更新走 CPU 池，`allOf().join()` 等本批完成
-4. 失败最多再 `put` 回队列 3 次；中断时 sleep 100ms 防空转
+4. 处理异常时把消息 `put` 回队列再试（`retryLimit = 3` 被 `put` 成功后的 `break` 短路，实际只重入一次、没有按消息维度的计数）；异常/中断时 sleep 100ms 防空转
 5. 每 1000 条打一次日志，用 `remainingCapacity()` 而不是 `queue.size()`
-6. `item_value` 截断到 1000 字符后再进 Kafka
+6. `item_value` 超 1000 字符时截取前 1000 再拼 `"... (truncated)"`（最终约 1015 字符）；仅 `DeviceItemListener` 生效，`MqttDeviceDataSubscribeListener.sendData` 不截断
 7. `DisposableBean.destroy` 停循环，单线程池最多等 60s
 
 这是 **当前生产主路径**。
@@ -56,11 +56,11 @@ flowchart LR
 | `asyncServiceExecutorIo` | Kafka / 拼 JSON / 远程 I/O | core 50，max 100 | `CallerRunsPolicy` |
 | `asyncServiceExecutorIoCpu` | 设备状态落库 | core `N/2`，max `N/2+1` | `CallerRunsPolicy` |
 
-`CallerRunsPolicy` 在池满时把任务打回调用线程，形成背压，而不是丢消息。Kafka 生产端另有 `linger.ms`（测试约 200ms，部分生产 2000ms）、`batch-size` 16KB、`acks=1`、`retries=10`。
+`CallerRunsPolicy` 在池满时把任务打回调用线程，形成背压，而不是丢消息。Kafka 生产端另有 `linger.ms`（测试 200ms，5 个 prod profile 全部 2000ms）、`batch-size` 16KB、`acks=1`、`retries=10`。
 
 ## 双 Kafka：最新态 + 追加日志
 
-`KafkaServiceImpl.sendData(topic, key, data)` 对同一 JSON 发两次，分区 key 一般是 `deviceCode`：
+`sendData(topic, key, data)` 单发一个 Topic；双发在调用方 `sendDataToKafka` 里对同一 JSON 连续发 `device_item_uni` 与 `device_item_dup`，分区 key 一般是 `deviceCode`：
 
 | Topic | Doris 模型 | 读法 |
 | --- | --- | --- |
@@ -71,7 +71,7 @@ flowchart LR
 
 Redis 把设备名、工序名、人员、当前 `device:now:status::{device}:{statusType}` 做成 24h 热点，避免每条测点打 Oracle。台账变更通过 Rabbit `device_info_{factoryCode}` 失效/回填缓存。
 
-## 自适应批次：设计在，主 Topic 不走它
+## 自适应批次：设计在，整套已停用
 
 `MqttDeviceDataSubscribeListener` 里有完整批次引擎：
 
@@ -79,12 +79,20 @@ Redis 把设备名、工序名、人员、当前 `device:now:status::{device}:{s
 - 每 `ADJUSTMENT_INTERVAL = 5000` ms 看上一窗耗时：大于 1s 则批次 -10，否则 +10
 - `ConcurrentLinkedQueue` 攒批，`processBatchAsync` 逐条 `sendData`
 
-但 `$queue/device_item_utf_8` 在这个类上的 `@MqttClientSubscribe` **已注释**，定时 `processBatchIfNeeded` 也未启动。需要分清的是：这是按耗时在吞吐和延迟之间调批次的设计，**线上主流量改成了「无界队列 + 单消费线程 + 线程池扇出」**，避免回调线程和批次窗口互相卡住。
+但 `$queue/device_item_utf_8` 在这个类上的 `@MqttClientSubscribe` **已注释**，定时 `processBatchIfNeeded` 未启动，连 `adjustBatchSize()` 的调用点（在 `processBatchAsync` 内）也被注释——整套批次引擎实际是**死代码**。而且初始 `batchSize = new AtomicInteger(1000)`，本身就超出 `MIN=1 / MAX=100` 的范围。需要分清的是：这是按耗时在吞吐和延迟之间调批次的设计，**线上主流量改成了「无界队列 + 单消费线程 + 线程池扇出」**，避免回调线程和批次窗口互相卡住。
 
 ## 云端侧的并发点
 
 状态写入 `addDeviceOnline` 用 `READ_COMMITTED`，只接受更新的 `gatherTime`，状态值不变则只延长历史段，减轻 PLC 高频心跳。连通性看板：请求线程先 Feign 解析工作中心（需要登录上下文），再 `CompletableFuture.supplyAsync` 并行查各分组联网/在线数。
 
 XXL-JOB 把「在线历史 → 日时长/次数」和 Routine Load 巡检放到夜间/小时级，不跟热路径抢。
+
+## 这套主路径的代价
+
+主路径是「无界队列 + 单消费线程 + 池化扇出」，吞吐好但有明确的取舍：
+
+- **队列无上限**：`LinkedBlockingQueue` 不设容量，真正刹住车的是线程池 `CallerRunsPolicy`；但背压只在池满时触发，队列本身会先积累，内存压力取决于下游多快恢复。
+- **单线程 drain 是单点**：`take` + 解析补名都在一个线程，解析变慢会卡住整条链路。水平扩容靠加边端实例（共享订阅分摊），不是加 drain 线程。
+- **`CallerRunsPolicy` 的双刃**：池满时任务打回调用线程（也就是 drain 线程）执行，能背压，但会让 drain 线程被 Kafka/落库阻塞，反过来拖慢消费。
 
 下一篇把「为何测点进 Doris 而不是 Influx/TDengine」展开：[存储选型](./storage.mdx)。

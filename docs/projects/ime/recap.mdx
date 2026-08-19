@@ -10,6 +10,8 @@ description: 能力概要、实现对照与设计问答
 
 IME 是工厂设备采集监控平台。我在 2022 年到 2023 年做技术负责人，从产线后台演进到统一数据中台。现场 PLC 经 KepServer 或网关走 MQTT 5（mica-mqtt，QoS 1，EMQX `$queue` 共享订阅）。**状态**在云端 `narada-cloud-device` 归一成运行/故障/联网三态，按采集时间幂等写入并分段历史，REST 看板看连通率。**测点**在工厂边端 `mqtt-client` 消费：回调只入队，IO/CPU 线程池拆开，同一条数据双写 Kafka——UNIQUE 给最新态、DUPLICATE 给全量轨迹——Doris Routine Load 入库，MES 用 MySQL 协议直接查。设备状态仍放 Oracle/MySQL + Redis，不把实时红绿绑在数仓上。这套可以按厂加边端实例，日测点过亿。
 
+> 口径说明：`2000+ 设备`、`日测点过亿` 是历史运营数据，代码库中无直接可核验的配置/常量，不作为可从源码推出的结论。
+
 ## 能力点 ↔ 实现
 
 | 文档口径 | 代码落点 | 容易忽略的细节 |
@@ -17,13 +19,13 @@ IME 是工厂设备采集监控平台。我在 2022 年到 2023 年做技术负�
 | mica-mqtt / MQTT 5 / QoS 1 | 云端与边端 `@MqttClientSubscribe(..., AT_LEAST_ONCE)` | 底层 Netty；本仓是 Client，Broker 是 EMQX |
 | 动态刷新 clientId | `mqtt-client/.../MqttClientConnectListener` | 适配带时间戳的云 MQTT 认证，不是随便换 ID |
 | 2000+ 设备 | 共享订阅 + 边端水平扩展 + 采集器 EMQX 对账 | 并发指接入与消息分摊，不是单机线程数 |
-| 自适应批次 1~100 / 5s | `MqttDeviceDataSubscribeListener.adjustBatchSize` | **设计在、主 Topic 已切到队列模型** |
+| 自适应批次 1~100 / 5s | `MqttDeviceDataSubscribeListener.adjustBatchSize` | **整套已停用（订阅、定时、调用点均注释）** |
 | 日处理 1 亿+ | 边端队列 + Kafka linger/batch + Doris 微批 | 测点走 Kafka/Doris，不是每条打云端 MySQL |
 | 双 Kafka 唯一索引 + 追加日志 | `device_item_uni` / `device_item_dup` | 对应 Doris UNIQUE / DUPLICATE；Java 不消费 |
 | Redis 热点与状态 | `CacheConstant` + `addDeviceOnline` 写 Redis | 设备名/工序/当前状态，降 Oracle QPS |
 | IO/CPU 隔离线程池 | `ExecutorConfig` 50–100 vs `N_CORES/2` | CallerRuns 做背压 |
 | XXL-JOB 批处理 | 状态时长、点检、Routine Load 巡检、保养任务 | 离线聚合，不挡热路径 |
-| Oracle → Doris | `DorisSnController` / `DorisSnServiceImpl` | 质检历史按天切，同样 uni/dup |
+| Oracle → Doris | `DorisSnController` / `DorisSnServiceImpl` | 质检历史按天切、同样 uni/dup；边端只推到 Kafka，MES 残留直插 Doris 的旧实现 |
 | 微服务 / Nacos | Gateway 9998、device 9002、MES、OEE | IME 是产品伞，采集监控不是整个仓 |
 
 ## 设计问答
@@ -38,7 +40,7 @@ IME 是工厂设备采集监控平台。我在 2022 年到 2023 年做技术负�
 写入侧一次发送、模型侧两种引擎语义；MES 最新查询打 uni，追溯打 dup，避免大表上再扫「最新」。
 
 **自适应批次为什么没挂主路径？**  
-批次窗口和 MQTT 回调容易互相拖。改成无界队列 + 单线程 drain + 池化扇出后，背压在队列和 CallerRuns 上更可控。批次代码留着说明做过吞吐/延迟权衡。
+批次窗口和 MQTT 回调容易互相拖。改成无界队列 + 单线程 drain + 池化扇出后，背压在队列和 CallerRuns 上更可控。批次代码现已整套停用（订阅、定时、调用点均注释），留着说明做过吞吐/延迟权衡。
 
 **乱序 MQTT 怎么办？**  
 `gatherTime` 更晚才更新当前行；更早的包丢弃。历史只在值变化时新开段。
