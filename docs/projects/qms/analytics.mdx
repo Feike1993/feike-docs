@@ -10,7 +10,7 @@ description: 客诉看板如何读 Doris ADS，以及 ClickHouse 遗留路径
 
 ## 实际查询
 
-`KSViewController.getWQHByDay` 不再走旧 ClickHouse 方法（已注释），改为 `KSViewServiceImpl.getWQHByDayByDoris`。
+`KSViewController.getWQHByDay` 的旧 ClickHouse 调用已注释，改为 `KSViewServiceImpl.getWQHByDayByDoris`；但旧的 `getWQHByDay`（click 版）方法体和 `IWQuestionHandleAdsService` 注入仍在，是未删的死代码。
 
 `WQuestionHandleAdsAllServiceImpl` 标 `@DS("doris")`，Mapper 查：
 
