@@ -81,7 +81,7 @@ const wechatQr = useBaseUrl('/img/wechat-qr.jpg');
 
 另可增加 PR 上的 `test-deploy.yml`，只构建不部署，提前发现构建失败。
 
-本仓库使用 **pnpm**（存在 `pnpm-lock.yaml`），Actions 里应使用 `pnpm/action-setup` + `pnpm install --frozen-lockfile`，而不是盲目 `npm ci`。
+本仓库使用 **pnpm**（`packageManager` 字段 + `pnpm-lock.yaml`）。Actions 用 `pnpm/action-setup`（版本从 `package.json` 读取）+ `pnpm install --frozen-lockfile`，不要 `npm ci`，也不要提交 `package-lock.json`。
 
 ## 4. 仓库开启 Pages（网页操作）
 
