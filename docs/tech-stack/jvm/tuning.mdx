@@ -1,0 +1,164 @@
+---
+sidebar_position: 2
+title: 参数调优
+description: 容器里给 Spring Boot 定堆和 GC：少动旋钮、三套 Java 8 / 17 / 25 保守启动行
+---
+
+# 参数调优
+
+版本差异见 [对照](./overview.mdx)。这里只谈 **Spring Boot 服务端生产**：HTTP API、定时任务、Excel 导入这类负载。目标是可复制的保守模板，不是把网上 20 个 G1 开关抄进 `JAVA_OPTS`。
+
+出了问题按 [故障排除](./troubleshooting.mdx) 取证，再决定要不要改这一页里的值。
+
+## 容器里先定堆，再谈 GC
+
+K8s / Docker 给的是 **cgroup memory limit**。Java **8u191+** 以及 17/25 默认 `MaxRAMPercentage` 是 **25%**（相对容器内存，不是宿主机），不改的话 4Gi limit 往往只拿到约 1Gi 堆，看起来像「内存没用上」。更早的 Java 8 可能按宿主机内存估堆，容器里更危险，生产镜像不要停在 8u191 之前。
+
+两种合法做法，选一种，不要混用：
+
+1. **百分比**：`-XX:MaxRAMPercentage=70.0`，可选 `-XX:InitialRAMPercentage=70.0` 让堆一起顶满，减少运行中扩堆。
+2. **绝对值**：`-Xms` 与 `-Xmx` **相同**，按 limit 留出堆外。
+
+不要只设 `-Xmx` 不设 `-Xms`：扩堆本身会带来停顿，生产稳态服务通常不需要这条弹性。
+
+**不要把 `-Xmx` 设成接近 100% limit。** 堆外还有 Metaspace、Direct、线程栈、Code Cache、GC 内部结构、glibc。堆占满 limit 时，常见结果是内核 **OOMKilled**，进程直接没了，不一定留下 `java.lang.OutOfMemoryError`。2～8Gi 的 Boot 服务，堆占 limit 的 **50%～75%** 是更稳的起点；线程特别多、Netty Direct 大时往 50% 靠。
+
+CPU request/limit 也会影响 GC 线程数。limit 很小（例如 500m）时，JVM 可能把并行 GC 线程估得很低或很怪。必要时显式：
+
+```bash
+-XX:ActiveProcessorCount=2
+```
+
+让 GC 线程数跟你真正给的核数对齐，而不是跟节点上的几十核对齐。
+
+## 按 SLA 选 GC，不要按版本猎奇
+
+| 负载 | Java 8 | Java 17 | Java 25 |
+| --- | --- | --- | --- |
+| 默认 / 吞吐优先（多数 CRUD API） | Parallel（默认即可） | G1（默认即可） | G1（默认即可） |
+| 停顿敏感（对 p99、导入大对象） | 才考虑 CMS；升级后必须换掉 | 先把 G1 堆和 `MaxGCPauseMillis` 做好；仍不够再试 ZGC | 低停顿用分代 ZGC；已在用 Shenandoah 再开分代模式 |
+| 对象极多、堆紧 | 先查泄漏和缓存 | 同左 | 可 **压测后** 开 Compact Object Headers |
+
+Spring Boot 里 Tomcat/Undertow 线程、Hikari、Feign、定时线程池占满时，加堆往往无效。连接池和请求超时先于盲目 `-Xmx`。
+
+**Java 8**：server 类机器默认 Parallel，吞吐好、停顿可以到几百毫秒。延迟敏感再上 CMS（`-XX:+UseConcMarkSweepGC`）。CMS 在 17 已删除，新服务不要再以它为目标架构。
+
+**Java 17**：默认 G1 对 Boot 单体通常够用。ZGC 此时是非分代，堆很大、停顿预算很紧时再试；小堆（2～4Gi）上 ZGC 不一定比调好的 G1 更好。
+
+**Java 25**：仍然先 G1。开 ZGC 即分代。Compact Object Headers：
+
+```bash
+-XX:+UseCompactObjectHeaders
+```
+
+对象多、缓存多的服务收益更明显，**先压测再进生产**。Shenandoah 分代给已经走 Shenandoah 的团队，不是 G1 服务的必选项。AOT cache 解决的是启动/预热，不替代堆和 GC。
+
+## 真正值得动的少数旋钮
+
+优先顺序：
+
+1. 堆大小（绝对值或 `MaxRAMPercentage`）与容器 limit 对齐
+2. GC 选择（上表）
+3. G1 的 `-XX:MaxGCPauseMillis`（默认 200）。API 可先保持 200；p99 紧再试 100，不要一上来 20
+4. 容器 CPU 与 `ActiveProcessorCount` / GC 线程数
+5. Metaspace 上限（防类加载泄漏把 native 吃光）：例如 `-XX:MaxMetaspaceSize=256m`
+6. Direct：Netty 很重时设 `-XX:MaxDirectMemorySize=`，并保证 limit 覆盖「堆 + Direct + 其余 native」
+
+**不要为了调而调：**
+
+- `InitiatingHeapOccupancyPercent`、`G1HeapRegionSize`、一堆 `G1*IHOP*`：没有 GC 日志依据就不要动
+- CMS 的 `CMSInitiatingOccupancyFraction` 等：升 17 后全部失效
+- `AggressiveOpts`：新版本已删除
+- 把 `ParallelGCThreads` 开到宿主机核数：在 2C 容器里会把应用线程饿死
+
+需要看 GC 是否健康时，用日志，不要靠感觉加参数。日志语法见 [对照](./overview.mdx)。
+
+## Spring 侧：指标是旁证
+
+Actuator 的 `jvm.memory.*`、`jvm.gc.pause` 适合看板和告警，**不能替代 GC 日志**：直方图没有 Cause、没有 Region、没有 promotion 失败。堆在涨，先查缓存、会话、未关闭的 Stream/Excel，再加 `-Xmx`。
+
+## 三套保守启动行
+
+面向 **2～8 核、2～8Gi limit** 的典型 Boot 服务。堆按 limit 换算，下面用 4Gi limit、堆约 2.5Gi 举例。
+
+dump / GC 日志 / hs_err 一律落在 **jar 启动目录**（进程 cwd，即 `user.dir`），不要写到 `/var/log` 等外部路径。启动前先进入 jar 所在目录：
+
+```bash
+cd /opt/app   # 与 app.jar 同目录；Docker 用 WORKDIR，systemd 用 WorkingDirectory
+java $JAVA_OPTS -jar app.jar
+```
+
+相对路径跟的是 cwd，不是 jar 文件路径。cwd 不对，文件会落到别处。`HeapDumpPath=.` 让 JVM 自动生成 `java_pid<pid>.hprof`；GC 用 `./gc-%t.log`，重启不互相覆盖。
+
+### Java 8
+
+```bash
+JAVA_OPTS="
+-XX:+UseParallelGC
+-Xms2560m -Xmx2560m
+-XX:MaxMetaspaceSize=256m
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=.
+-XX:ErrorFile=./hs_err_pid%p.log
+-XX:+PrintGCDetails
+-XX:+PrintGCDateStamps
+-Xloggc:./gc-%t.log
+-XX:+UseGCLogFileRotation
+-XX:NumberOfGCLogFiles=5
+-XX:GCLogFileSize=20M
+"
+```
+
+停顿明显不可接受、且短期不能升 17 时，把 `-XX:+UseParallelGC` 换成 `-XX:+UseConcMarkSweepGC`，并准备好升级后删掉它。
+
+### Java 17
+
+```bash
+JAVA_OPTS="
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+-XX:MaxRAMPercentage=65.0
+-XX:InitialRAMPercentage=65.0
+-XX:MaxMetaspaceSize=256m
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=.
+-XX:ErrorFile=./hs_err_pid%p.log
+-Xlog:gc*:file=./gc-%t.log:time,uptime,level,tags:filecount=5,filesize=20M
+"
+```
+
+p99 停顿仍超标、堆已经 ≥8Gi 时，再评估 `-XX:+UseZGC`（17 为非分代），不要和 G1 开关叠在一起。
+
+### Java 25
+
+```bash
+JAVA_OPTS="
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+-XX:MaxRAMPercentage=65.0
+-XX:InitialRAMPercentage=65.0
+-XX:MaxMetaspaceSize=256m
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=.
+-XX:ErrorFile=./hs_err_pid%p.log
+-Xlog:gc*:file=./gc-%t.log:time,uptime,level,tags:filecount=5,filesize=20M
+"
+```
+
+压测通过后再追加（不要默认打开）：
+
+```bash
+-XX:+UseCompactObjectHeaders
+```
+
+低停顿路径（与 G1 二选一）：
+
+```bash
+-XX:+UseZGC
+```
+
+25 上的 ZGC 是分代实现，不必再写 `UnlockExperimentalVMOptions`。
+
+## 改参数的纪律
+
+一次只改一类（堆，或 GC，或 Headers），用同一流量压测对比 **p99、GC 停顿、RSS、是否被 OOMKilled**。没有基线的调优等于没调。
