@@ -60,20 +60,7 @@ const config: Config = {
           // Remove this to remove the "edit this page" links.
           editUrl: 'https://github.com/Feike1993/feike-docs/tree/main/',
         },
-        blog: {
-          showReadingTime: true,
-          feedOptions: {
-            type: ['rss', 'atom'],
-            xslt: true,
-          },
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl: 'https://github.com/Feike1993/feike-docs/tree/main/',
-          // Useful options to enforce blogging best practices
-          onInlineTags: 'warn',
-          onInlineAuthors: 'warn',
-          onUntruncatedBlogPosts: 'warn',
-        },
+        blog: false,
         theme: {
           customCss: ['./src/css/custom.css', './src/css/brand-themes.css'],
         },
@@ -112,7 +99,6 @@ const config: Config = {
           position: 'left',
           label: '项目经历',
         },
-        {to: '/blog', label: '博客', position: 'left'},
         {
           type: 'custom-brandThemeSwitcher',
           position: 'right',
@@ -164,10 +150,6 @@ const config: Config = {
         {
           title: '更多',
           items: [
-            {
-              label: '博客',
-              to: '/blog',
-            },
             {
               label: 'GitHub',
               href: 'https://github.com/Feike1993/feike-docs',
