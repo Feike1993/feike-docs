@@ -1,0 +1,123 @@
+---
+sidebar_position: 7
+title: 一手资料与官网
+description: Agent 学习必读一手文、厂商与框架官网入口、中文体系化资料、一个月验收清单与第 2 个月预览
+---
+
+# 一手资料与官网
+
+原则：**优先厂商 / 协议官方**。社区路线（如 JavaGuide）标为「二手体系化整理」，适合补齐中文语境，不与一手混称。
+
+怎么读这些站点：见 [Agent 怎么学 · 怎么读官方文档](./how-to-learn.mdx#怎么读官方文档)。四周日程里的「必读」优先链到本页 **A / B**；JavaGuide 作同周加深。
+
+## A. 必读一手（开篇）
+
+| 资料 | 链接 | 学什么 |
+| --- | --- | --- |
+| Anthropic Engineering: Building effective agents | https://www.anthropic.com/engineering/building-effective-agents | Workflow vs Agent、五种模式、ACI、何时不要用 Agent |
+| OpenAI: Building agents track | https://developers.openai.com/tracks/building-agents | 官方如何建 Agent；Responses API vs Agents SDK |
+| OpenAI Agents 指南 | https://developers.openai.com/api/docs/guides/agents | 工具、MCP、guardrails、编排 |
+| LangChain overview | https://docs.langchain.com/oss/python/langchain/overview | Agent = Model + Harness；`create_agent` |
+| Spring AI 项目页 | https://spring.io/projects/spring-ai/ | Java AI 应用框架入口与能力清单 |
+| Spring AI Reference | https://docs.spring.io/spring-ai/reference/ | ChatClient、Tools、Advisors、RAG、MCP |
+| Spring: Composable Tool Calling | https://spring.io/blog/2026/06/15/spring-ai-composable-tool-calling | ToolCallingAdvisor、可观察的工具循环 |
+| Model Context Protocol | https://modelcontextprotocol.io/ | 工具与上下文的标准协议 |
+| 秘塔相关对话（用户指定） | https://metaso.cn/chat/2085614323403894785 | 以你本地打开内容为准；抓取不稳定时勿依赖缓存摘要 |
+
+:::info[从哪一页开始]
+每个官网固定顺序：**Overview / Concepts → Quickstart → 自己改一版 → Advanced / 生产章节**。不要从随机博客倒推官方能力。
+:::
+
+## B. 厂商与框架官网导航
+
+### 模型与 Agent 产品方
+
+| 站点 | 链接 | 用途 |
+| --- | --- | --- |
+| Anthropic | https://www.anthropic.com/ | 产品与研究入口 |
+| Anthropic Docs | https://docs.anthropic.com/ | API、Tool use、提示与安全 |
+| Anthropic Engineering | https://www.anthropic.com/engineering | 工程实践长文（含 Agent） |
+| OpenAI | https://openai.com/ | 产品入口 |
+| OpenAI Platform Docs | https://platform.openai.com/docs | API 参考与指南 |
+| OpenAI Developers | https://developers.openai.com/ | Agents track、SDK、集成 |
+| Google AI for Developers | https://ai.google.dev/ | Gemini API 与示例 |
+
+**国内常见（按你实际使用的控制台核对最新文档）**
+
+| 厂商 | 文档入口（常见） |
+| --- | --- |
+| DeepSeek | https://api-docs.deepseek.com/ |
+| 通义 / 阿里云百炼 | https://help.aliyun.com/zh/model-studio/ |
+| 智谱 | https://docs.bigmodel.cn/ |
+| Moonshot / Kimi | https://platform.moonshot.cn/docs |
+
+### Java 主栈
+
+| 站点 | 链接 | 用途 |
+| --- | --- | --- |
+| Spring AI | https://spring.io/projects/spring-ai/ | 项目总览 |
+| Spring AI Reference | https://docs.spring.io/spring-ai/reference/ | 权威 API 与概念 |
+| Spring Initializr | https://start.spring.io/ | 勾选 AI Model / Vector Store starters |
+| LangChain4j | https://docs.langchain4j.info/ | Java 侧另一套常用抽象（可选对照） |
+
+### Python 对照（只读概念）
+
+| 站点 | 链接 | 用途 |
+| --- | --- | --- |
+| LangChain Docs | https://docs.langchain.com/ | 文档总入口 |
+| LangChain Agents | https://docs.langchain.com/oss/python/langchain/overview | `create_agent` 与 harness |
+| LangGraph | https://docs.langchain.com/oss/python/langgraph/overview | 低层编排、持久化、人机协同 |
+
+本月目标仍是 **Java 主栈**；Python 用于看懂开源示例与评测脚本，不是换血。
+
+### 协议与工具互通
+
+| 站点 | 链接 | 用途 |
+| --- | --- | --- |
+| MCP 官网 | https://modelcontextprotocol.io/ | 规范与入门 |
+| MCP GitHub org | https://github.com/modelcontextprotocol | 规范仓库、SDK、示例 Server |
+
+### 中文体系化（二手，高质量）
+
+适合 Java / 后端转型补齐中文语境与面试主线，**不替代**上表官方文档：
+
+| 资料 | 链接 |
+| --- | --- |
+| JavaGuide · AI 应用开发知识体系 | https://javaguide.cn/ai/ |
+| Java/Go → AI 与 Agent 学习路线 | https://javaguide.cn/roadmap/java-to-ai-roadmap.html |
+| 后端转型 AI Agent 学习建议 | https://javaguide.cn/roadmap/backend-to-ai-agent-roadmap.html |
+| AIGuide（开源整理） | https://github.com/Snailclimb/AIGuide |
+| JavaGuide AI 编程专题（工具向，可选） | https://javaguide.cn/ai-coding/ |
+
+## C. 怎么用这些资料
+
+1. **Week 日程「必读」** → 优先 A/B 一手链接。  
+2. **同周加深** → JavaGuide 对应专题，用来串概念与排错清单。  
+3. **框架与 Anthropic 名词冲突** → 自己做对照表（见 [怎么学](./how-to-learn.mdx)），不要死记框架营销名。  
+4. **版本会变** → 涉及 API、价格、GA 版本时，以官网当日文档为准。
+
+## 一个月验收清单
+
+- [ ] 责任链选题清晰，成功标准可验收  
+- [ ] 流式调用 + 结构化输出（含服务端校验）  
+- [ ] 单 Agent，3～5 个工具，工具描述经过迭代  
+- [ ] 手写 loop 与框架 loop 至少各理解一套  
+- [ ] ≥2 种 Anthropic workflow 有可运行实现  
+- [ ] 小知识库 + 检索工具（Agentic RAG）+ 拒答策略  
+- [ ] Golden Set ≥30，改动能对比好坏  
+- [ ] 轨迹 / Token 或耗时可回放  
+- [ ] 高风险动作人工确认；注入样例进评测  
+- [ ] MCP 最小实验可演示  
+- [ ] ≥3 人试跑 + Badcase 复盘文档  
+
+未勾项按优先级排进第 2 个月，而不是同时开新平台项目。
+
+## 第 2 个月预览
+
+- MCP 在多服务下的鉴权、审计与工具目录治理  
+- 多 Agent / handoff（组织责任边界），仍先保证单 Agent 稳定  
+- 模型网关：路由、限流、fallback、成本归因  
+- 更完整的评测平台与线上灰度  
+- 可选：LangGraph / Spring AI Alibaba 等编排加深（有业务需要再上）
+
+回到 [概览](./overview.mdx) 或从 [Week 1](./week-1.mdx) 开始执行。

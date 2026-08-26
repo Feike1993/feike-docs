@@ -1,0 +1,87 @@
+---
+sidebar_position: 2
+title: Agent 怎么学
+description: 资深 Java 学 Agent 的目标分层、硬顺序、每天 8 小时用法、旧栈映射与读官方文档的方法
+---
+
+# Agent 怎么学
+
+方法比书单更重要。这一页定规矩；具体日程见 [Week 1](./week-1.mdx)～[Week 4](./week-4.mdx)，链接见 [一手资料与官网](./resources.mdx)。
+
+## 目标分层
+
+| 层级 | 你会什么 | 本月是否够 |
+| --- | --- | --- |
+| 会调 API | Chat / 流式 / 一把 Prompt | 不够 |
+| 会做 Agent | 工具循环、结构化结果、停止条件 | 中间态 |
+| 会做可上线 Agent | 权限、轨迹、评测、人工确认、成本与失败恢复 | **一个月终点** |
+
+:::tip[一句话]
+会调模型 API ≠ 会做 Agent ≠ 会做可上线 Agent。本月落在最后一层的**单 Agent 准生产**，不是 Demo 聊天窗。
+:::
+
+## 学习顺序（硬规则）
+
+1. **先读一手架构，再堆框架**  
+   先吃透 [Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) 里的 Workflow vs Agent、五种可组合模式。框架是实现手段，不是定义本身。
+
+2. **先手写最小 loop，再上框架**  
+   自己写一轮「模型提议工具 → 服务端执行 → 回填 → 再调模型」，再对比 Spring AI `ToolCallingAdvisor` / LangChain `create_agent`。黑盒里翻车时，你要知道循环在哪一层。
+
+3. **先单 Agent + 少工具，再 RAG / MCP / 多 Agent**  
+   2～3 个工具跑稳，再把检索做成工具；MCP 与多 Agent 放后半程或第 2 个月。
+
+4. **每加一层复杂度，必须有评测证据**  
+   对齐 Anthropic：「测量再迭代」。改 Prompt、换模型、改工具描述前后，用同一批任务对比，而不是凭感觉「好像更好了」。
+
+## 每天 8 小时怎么切
+
+| 块 | 时长 | 做什么 | 不做 |
+| --- | --- | --- | --- |
+| 精读 | 3h | Overview → Quickstart → 本周章节；记边界与反例 | 同时开 5 个标签页漫游 |
+| 动手 | 3h | 复现官方最小例 → 接到你的业务工具 | 只看不写 |
+| 对照 | 1.5h | 换模型 / 改工具 description / 手写 vs 框架 | 无记录刷框架对比文 |
+| 日记 | 0.5h | 今日卡点、失败样例、明日第一件事 | 空写「学习了 Agent」 |
+
+时间不够时：**砍精读第二篇与加分项，保住动手 DoD**。
+
+## Java 工程师怎么用旧栈
+
+Agent 工程把「业务责任链」软件化。旧能力重新定价，而不是作废：
+
+| 你熟悉的 | 在 Agent 里常变成 |
+| --- | --- |
+| Spring Boot / Security | Agent 服务入口、工具鉴权、审批 API |
+| MySQL / Redis | 任务状态、审计、短期记忆、预算计数 |
+| MQ / 定时任务 | 异步 Run、重试、定时评测 |
+| 日志 / 指标 / 链路 | Run 级轨迹、工具失败率、成本归因 |
+| 状态机 / 工作流引擎 | 确定性节点 + Agent 节点混编；高风险动作不交给模型直接落库 |
+
+选题优先**责任链**：输入清楚、工具边界清楚、成功可验收（工单分流、售后建议、告警排查）。少做「无所不知的聊天机器人」。
+
+## 怎么读官方文档
+
+固定路径，减少迷路：
+
+```text
+Concepts / Overview  →  Quickstart  →  自己改一版跑通  →  Advanced / 生产章节
+```
+
+- 每个官网从哪一页开始：见 [一手资料与官网](./resources.mdx)。
+- 框架术语和 Anthropic 模式名称不一致时，自己做一张**对照表**（例如：手写 ReAct loop ≈ Agent；Advisor 链上的固定步骤 ≈ Workflow）。
+- 中文体系化文章（如 JavaGuide）作**同周加深**，主表以厂商/协议官方为准。
+
+## 常见学法误区
+
+:::danger[容易白费一个月的做法]
+- **只追框架名**：Spring AI / LangChain / 某某 Multi-Agent，却说不清 Workflow 和 Agent 差在哪。
+- **一上来多 Agent**：单 Agent 的工具权限、停止条件、轨迹都没稳，先拆「专家团队」。
+- **不写工具文档**：工具 description 像随手注释；模型调错参数后怪模型「笨」。工具接口要按 ACI（Agent-Computer Interface）打磨。
+- **没有 Golden Set**：没有固定任务集，就无法证明改动变好还是变坏。
+- **把 Python 换血当转型**：丢掉 Java 工程底座去追 Python Demo；企业落地仍要鉴权、状态、审计、回滚。
+:::
+
+## 和四周路线的关系
+
+- 方法在本页；日程在 Week 页；链接在 [resources](./resources.mdx)。
+- 每周末用 [验收清单](./resources.mdx#一个月验收清单) 自检，缺项下周优先补，不要堆新概念。

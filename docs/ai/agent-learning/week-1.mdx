@@ -1,0 +1,79 @@
+---
+sidebar_position: 3
+title: Week 1 · 底座与 Prompt
+description: D1–D7：Token、流式、结构化输出、Prompt 与 Context；每天约 8 小时，定下本月业务选题
+---
+
+# Week 1 · 底座与 Prompt
+
+主题：从确定性后端思维切到概率系统；把 LLM 调用层当成基础设施。方法见 [Agent 怎么学](./how-to-learn.mdx)。
+
+**本周出口**：流式接口能讲清；结构化输出有服务端校验；本月责任链选题一页纸。
+
+## D1–D2 · Token、窗口、流式
+
+**上午精读**
+
+- [Anthropic: Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) 开篇：何时用 Agent、Workflow vs Agent
+- [Spring AI 项目页](https://spring.io/projects/spring-ai/) → [Reference 入门](https://docs.spring.io/spring-ai/reference/)：ChatClient 概念
+- 加深：[JavaGuide · LLM 运行机制](https://javaguide.cn/ai/)（Token、上下文窗口、Temperature）
+
+**下午动手**
+
+- 用 Spring AI 或 OpenAI 兼容 API 跑通非流式 + SSE 流式
+- 记录 TTFT、截断、代理缓冲对「假流式」的影响
+
+**对照 / 日记**
+
+- 同一 Prompt，Temperature 0 vs 0.8 各跑 5 次，记输出漂移
+- DoD：能口头解释 Token 预算公式：`window >= input + max_output`（再留安全边际）
+
+## D3–D4 · 结构化输出
+
+**上午精读**
+
+- Spring AI Structured Output / 输出到 POJO 相关章节（Reference）
+- 加深：JavaGuide「结构化输出」——JSON Schema、Function Calling、Strict 模式边界
+
+**下午动手**
+
+- 让模型产出业务 JSON（如工单字段）；服务端：解析 → 可选修复 → Schema/业务校验
+- 故意制造截断 JSON，验证重试与降级提示
+
+**对照 / 日记**
+
+- 「只靠 Prompt 要求 JSON」vs「Schema + 服务端校验」失败率对比
+- DoD：业务层从不直接信任模型原文进库
+
+## D5–D6 · Prompt 与选题
+
+**上午精读**
+
+- Prompt：Role / Task / Context / Format；System vs User 边界
+- Context Engineering 入门：窗口里先放什么、不够时砍什么
+- 加深：JavaGuide Prompt / 上下文工程相关篇
+
+**下午动手**
+
+- 写本月项目一页纸：业务域、输入、输出、工具候选、拒绝条件、人工接管点、验收标准
+- 选题对齐责任链（工单 / 知识问答 / 告警），避免泛聊天
+
+**对照 / 日记**
+
+- 用注入句试探 System Prompt 是否易被覆盖；记下防护缺口（第 4 周再补全）
+- DoD：选题一页纸可给同事看懂「成功长什么样」
+
+## D7 · 缓冲与 Week 1 复盘
+
+- 补债：流式 / 结构化任一块不稳则优先修
+- 自检：
+  - [ ] 能说明为何多数场景应先优化单次调用，再上 Agent
+  - [ ] 有可运行的流式 Demo
+  - [ ] 结构化链路含校验与失败路径
+  - [ ] 项目选题与验收标准已写下
+
+:::tip[进入 Week 2 的前提]
+还没有选题一页纸，不要开始堆工具框架。工具是为任务服务的。
+:::
+
+下一周：[Week 2 · Tools 与 Agent 模式](./week-2.mdx)

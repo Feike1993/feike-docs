@@ -1,0 +1,79 @@
+---
+sidebar_position: 5
+title: Week 3 · RAG 与 Context
+description: D15–D21：分块、Embedding、VectorStore、检索优化；检索做成 Agent 工具；管住上下文预算
+---
+
+# Week 3 · RAG 与 Context
+
+主题：小知识库最小闭环；检索做成 Agent 的一个工具；管住 Context，而不是先上知识库平台。
+
+**本周出口**：一批真实文档可检索；带出处回答 + 拒答；Agent 可调用检索工具；有 ≥20 条召回评测题。
+
+## D15–D16 · 文档进库
+
+**上午精读**
+
+- [Spring AI Reference](https://docs.spring.io/spring-ai/reference/)：ETL / DocumentReader、Embedding、VectorStore
+- 加深：JavaGuide RAG 基础、文档处理与切分
+
+**下午动手**
+
+- 导入一小批**真实**业务文档（制度、FAQ、Runbook 等）
+- 完成：解析 → Chunk（语义/标题优先，保留 overlap）→ Embedding → 写入 VectorStore
+
+**对照 / 日记**
+
+- 粗暴按固定字数切 vs 按标题切，抽查 5 个问题的召回差异
+- DoD：换 Embedding 模型要重嵌入——写进笔记，避免以后混用向量空间
+
+## D17–D18 · 检索质量
+
+**上午精读**
+
+- Hybrid / Query Rewrite / Rerank 概念（JavaGuide 检索优化 + Spring AI Advisor 中与 RAG 相关的部分）
+- 「答非所问」优先查召回，而不是先换更大模型
+
+**下午动手**
+
+- 准备 **≥20** 条问答评测（问句 + 期望文档/要点）
+- 调 topK、是否改写查询；记录命中率与典型 Badcase
+
+**对照 / 日记**
+
+- 只向量 vs 关键词/混合（若环境允许）各跑一轮评测表
+- DoD：有一张表格，而不是「我觉得差不多」
+
+## D19–D20 · Agentic RAG 与 Memory
+
+**上午精读**
+
+- Context Engineering：Token 预算、Lost in the Middle、摘要与降级
+- Chat Memory / 会话状态在 Spring AI 中的位置
+
+**下午动手**
+
+- 把「检索」封装成 Agent 工具；Agent 决定是否检索、用什么 query
+- 无法确认时**拒答或升级**，禁止编造出处
+- 做一轮长对话：观察窗口膨胀，练习裁剪或增量摘要
+
+**对照 / 日记**
+
+- 固定 RAG 流水线 vs Agent 自主检索：延迟、跑偏、拒答率
+- DoD：答案能指出依据片段；无依据时明确说不知道
+
+## D21 · 缓冲与 Week 3 复盘
+
+自检：
+
+- [ ] 小知识库可重复导入
+- [ ] ≥20 条召回/问答评测有记录
+- [ ] 检索工具已挂到单 Agent
+- [ ] 有拒答 / 无出处策略
+- [ ] 做过至少一次上下文预算实验
+
+:::caution[范围]
+本周不做 GraphRAG、不做全量知识库产品与复杂权限模型。那些放第 2 个月。
+:::
+
+下一周：[Week 4 · 工程化、评测与试跑](./week-4.mdx)

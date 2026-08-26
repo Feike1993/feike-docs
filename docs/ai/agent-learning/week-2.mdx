@@ -1,0 +1,80 @@
+---
+sidebar_position: 4
+title: Week 2 · Tools 与 Agent 模式
+description: D8–D14：Function Calling、手写 ReAct、Spring AI ToolCallingAdvisor、Anthropic 可组合 workflow
+---
+
+# Week 2 · Tools 与 Agent 模式
+
+主题：工具工程 + Agent loop；把 Anthropic 模式亲手做出来，而不是只背名词。
+
+**本周出口**：单 Agent 可调 ≥3 个工具；结构化结果可落库或落文件；轨迹可回放；至少实现 2 种 workflow。
+
+## D8–D9 · Function Calling 与工具封装
+
+**上午精读**
+
+- [Spring AI Composable Tool Calling](https://spring.io/blog/2026/06/15/spring-ai-composable-tool-calling)
+- Reference：`@Tool` / ToolCallback、工具描述怎么写
+- Anthropic 附录：把工具当 ACI（参数名、绝对路径、少格式开销）
+
+**下午动手**
+
+- 封装 ≥2 个真实工具（HTTP API、DB 查询等择你熟悉的域）
+- 明确边界：**模型只提议调用，Java 端校验参数并执行**
+
+**对照 / 日记**
+
+- 故意写差 description vs 写清约束/边界，对比错调率
+- DoD：工具默认产出「草稿/建议」，高风险动作不直达生产写接口
+
+## D10–D11 · 手写 Loop vs 框架
+
+**上午精读**
+
+- Anthropic「Agents」一节：环境反馈循环、停止条件、沙箱与护栏
+- Spring AI：`ToolCallingAdvisor`、Recursive Advisors 概念
+
+**下午动手**
+
+- 手写最小 ReAct 风格循环：`maxSteps`、工具错误回填、超时
+- 同一任务用 ChatClient + tools（框架托管 loop）再跑一遍
+
+**对照 / 日记**
+
+- 画一张对照表：手写循环职责 vs Advisor 链职责
+- DoD：两种路径都能完成同一任务，且能指出框架帮你藏了哪几步
+
+## D12–D13 · Anthropic 模式落地 + LangChain 对照
+
+**上午精读**
+
+- Anthropic 五种 workflow：prompt chaining、routing、parallelization、orchestrator-workers、evaluator-optimizer
+- [LangChain overview](https://docs.langchain.com/oss/python/langchain/overview)：Agent = Model + Harness，`create_agent` 在解决什么问题
+- 可选：[OpenAI Building agents](https://developers.openai.com/tracks/building-agents) 扫一遍官方叙事
+
+**下午动手**
+
+- 至少实现 **2 种** workflow（建议：chaining + routing，或 chaining + evaluator-optimizer）
+- 业务 Agent 挂上第 3 个工具；结果结构化落库/落文件；打印逐步轨迹
+
+**对照 / 日记**
+
+- 同一任务：纯 Agent 自由发挥 vs routing 分流，比延迟、成本、正确率
+- DoD：能说清「这个任务为什么不该一上来就上全自动 Agent」
+
+## D14 · 缓冲与 Week 2 复盘
+
+自检：
+
+- [ ] ≥3 个工具，description 经过迭代
+- [ ] 手写 loop 与框架 loop 都能跑，并理解差异
+- [ ] ≥2 种 Anthropic workflow 有可运行代码
+- [ ] 轨迹（工具名、参数摘要、步数、失败原因）可回放
+- [ ] 仍是单 Agent，没有提前拆多 Agent
+
+:::info[样例对照]
+若本地有 Chat → Structured → Tools → ReAct 样例仓，本周对照「手写 Loop」与「框架 tool-calling」即可；概念优先于拷贝业务代码。
+:::
+
+下一周：[Week 3 · RAG 与 Context](./week-3.mdx)
