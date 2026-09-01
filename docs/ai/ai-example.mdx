@@ -1,0 +1,61 @@
+---
+sidebar_position: 0
+title: AI Example
+description: Agent 学习 cookbook 一页介绍：源码地址、技术栈、分期样例与最短启动
+---
+
+# AI Example
+
+独立的 **Agent 学习 cookbook**：用可跑通的样例把 Chat → Tools → Agent → MCP / RAG → 上下文与多 Agent → 评测与进阶检索串起来。学习计划在本站 [Agent 学习路线](/docs/ai/agent-learning/overview)；动手代码在本仓库。
+
+| 项 | 内容 |
+| --- | --- |
+| 源码 | [github.com/Feike1993/ai-example](https://github.com/Feike1993/ai-example) |
+| 基线 | `v0.2.0`（一至三期 + 基础补丁） |
+| 进行中 | 第七期：语义分块（7a）→ 父子文档（7b） |
+
+## 技术栈
+
+| 层 | 选择 |
+| --- | --- |
+| Java | JDK **25**，Spring Boot **4.1** + Spring AI **2.0** + Gradle |
+| Python | LangGraph / MCP SDK（对照，非主交付） |
+| 前端 | Vite + React playground（`frontend/`） |
+| 数据 | Docker：PostgreSQL + pgvector（RAG / 记忆） |
+| 模型 | 聊天默认 DeepSeek；Embedding（RAG）用 DashScope |
+
+## 分期一览
+
+| 期 | 主题 | 要点 |
+| --- | --- | --- |
+| 1 | 最小 Agent 闭环 | Chat → 结构化输出 → Tool Calling → ReAct Agent Loop |
+| 2 | MCP + RAG | 工具协议标准化；分块 / Embedding / pgvector 检索 |
+| 3 | 上下文 + 多 Agent | trim / summarize；Orchestrator–Subagent |
+| 基础补丁 | 横切补齐 | Prompt 外置、Token 用量、RAG 空检索拒答、Agent 流式终答 |
+| 4 | Hybrid RAG + 评测 | 向量 + 全文 + RRF；golden suite |
+| 5 | 会话与记忆 | PostgreSQL 持久会话；长期记忆（pgvector） |
+| 6 | MCP 远端 + HyDE | 独立 MCP Server；假想文档 Embedding |
+| 7 | 分块进阶 | 语义分块（进行中）；父子文档待 7b |
+
+更细的样例表、接口路径与完成标准见仓库 [README](https://github.com/Feike1993/ai-example/blob/main/README.md) 与 [学习路径](https://github.com/Feike1993/ai-example/blob/main/docs/learning-path.md)。
+
+## 本地怎么跑（最短）
+
+```bash
+git clone https://github.com/Feike1993/ai-example.git
+cd ai-example
+cp .env.example .env
+# 填入 PROVIDER_DEEPSEEK_API_KEY；RAG 再填 PROVIDER_DASHSCOPE_API_KEY
+
+docker compose up -d          # RAG / 记忆需要
+cd java && ./gradlew bootRun  # http://localhost:8080/ai-example/
+
+# 另开终端
+cd frontend && pnpm install && pnpm dev  # http://localhost:5173
+```
+
+第六期默认 MCP `remote` 时，需另开终端 `cd mcp-server && ./gradlew bootRun`。细节以仓库 README 为准。
+
+:::tip[IntelliJ 跑主类]
+用 `./gradlew bootRun` 能读根目录 `.env`；IDE 直接跑 `AiExampleApplication` 默认不会。见 [IntelliJ 启动未加载 .env](/docs/tech-stack/ide/intellij-envfile)。
+:::
