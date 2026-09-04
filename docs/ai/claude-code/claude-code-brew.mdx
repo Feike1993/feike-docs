@@ -27,8 +27,11 @@ brew install --cask claude-code
 已安装时升级：
 
 ```bash
+brew update
 brew upgrade claude-code
 ```
+
+升级前先 `brew update`，刷新本地 Homebrew 索引与 cask 定义；否则可能仍按旧元数据判断版本，错过已发布的新版。
 
 追新用 `claude-code@latest`。不要和稳定频道同时装两份。
 
@@ -70,9 +73,10 @@ curl: (35) LibreSSL SSL_connect: SSL_ERROR_SYSCALL in connection to downloads.cl
 
 本文只记录实测时开关已打开，不写如何安装「服务模式」。
 
-开启后再执行：
+开启后再执行（同样先 `brew update`）：
 
 ```bash
+brew update
 brew upgrade claude-code
 ```
 
