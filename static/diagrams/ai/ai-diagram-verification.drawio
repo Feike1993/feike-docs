@@ -1,0 +1,43 @@
+<mxfile host="Electron" agent="draw.io 30.0.2" version="30.0.2">
+  <diagram id="verification" name="AI 生成技术图的核验流程">
+    <mxGraphModel dx="1200" dy="470" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="470" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="AI 生成技术图的核验流程" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=24;fontStyle=1;fontColor=#172B4D;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="420" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="AI 负责生成可审查的图源，人负责确认每个节点和关系都符合事实" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;fontColor=#5E6C84;" vertex="1" parent="1">
+          <mxGeometry x="40" y="62" width="650" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="step1" value="&lt;font color=&quot;#2684FF&quot;&gt;&lt;b&gt;01&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;b&gt;文档作者&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#5E6C84&quot;&gt;提供事实、受众与边界&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=14;fillColor=#E9F2FF;strokeColor=#4C9AFF;strokeWidth=2;fontColor=#172B4D;fontSize=14;spacing=10;align=center;" vertex="1" parent="1">
+          <mxGeometry x="55" y="150" width="205" height="104" as="geometry" />
+        </mxCell>
+        <mxCell id="step2" value="&lt;font color=&quot;#6554C0&quot;&gt;&lt;b&gt;02&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;b&gt;AI Agent&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#5E6C84&quot;&gt;组织层级、节点与连线&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=14;fillColor=#EAE6FF;strokeColor=#6554C0;strokeWidth=2;fontColor=#172B4D;fontSize=14;spacing=10;align=center;" vertex="1" parent="1">
+          <mxGeometry x="330" y="150" width="205" height="104" as="geometry" />
+        </mxCell>
+        <mxCell id="step3" value="&lt;font color=&quot;#00A36C&quot;&gt;&lt;b&gt;03&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;b&gt;可审查图源&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#5E6C84&quot;&gt;.drawio / 文本化定义&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=14;fillColor=#E3FCEF;strokeColor=#00A36C;strokeWidth=2;fontColor=#172B4D;fontSize=14;spacing=10;align=center;" vertex="1" parent="1">
+          <mxGeometry x="605" y="150" width="205" height="104" as="geometry" />
+        </mxCell>
+        <mxCell id="step4" value="&lt;font color=&quot;#DE350B&quot;&gt;&lt;b&gt;04&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;b&gt;技术评审&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#5E6C84&quot;&gt;逐项核对节点与关系&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=14;fillColor=#FFEBE6;strokeColor=#DE350B;strokeWidth=2;fontColor=#172B4D;fontSize=14;spacing=10;align=center;" vertex="1" parent="1">
+          <mxGeometry x="880" y="150" width="205" height="104" as="geometry" />
+        </mxCell>
+        <mxCell id="approved" value="&lt;b&gt;确认后入库&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#006644&quot;&gt;图与代码共同演进&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=16;fillColor=#E3FCEF;strokeColor=#00A36C;strokeWidth=3;fontColor=#172B4D;fontSize=14;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="880" y="320" width="205" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="correction" value="&lt;b&gt;修正缺失或臆造关系&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#5E6C84&quot;&gt;保留证据，重新生成&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=16;fillColor=#FFF0E0;strokeColor=#FF8B00;strokeWidth=2;fontColor=#172B4D;fontSize=14;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="330" y="320" width="250" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="事实清单" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2684FF;strokeWidth=2;endArrow=block;endFill=1;fontSize=12;fontColor=#344563;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="step1" target="step2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2" value="生成源文件" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6554C0;strokeWidth=2;endArrow=block;endFill=1;fontSize=12;fontColor=#403294;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="step2" target="step3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e3" value="提交核验" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#00A36C;strokeWidth=2;endArrow=block;endFill=1;fontSize=12;fontColor=#006644;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="step3" target="step4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e4" value="全部可信" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#00A36C;strokeWidth=2;endArrow=block;endFill=1;fontSize=12;fontColor=#006644;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="step4" target="approved"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e5" value="发现问题" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#DE350B;strokeWidth=2;dashed=1;dashPattern=8 4;endArrow=block;endFill=1;fontSize=12;fontColor=#BF2600;labelBackgroundColor=#FFFFFF;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="step4" target="correction"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="930" y="355" /></Array></mxGeometry></mxCell>
+        <mxCell id="e6" value="带证据反馈" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#FF8B00;strokeWidth=2;dashed=1;dashPattern=8 4;endArrow=block;endFill=1;fontSize=12;fontColor=#974F0C;labelBackgroundColor=#FFFFFF;exitX=0.4;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="correction" target="step2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="note" value="&lt;b&gt;核验原则：&lt;/b&gt;每个组件和箭头都应能对应代码、配置、接口契约或明确的设计决定。" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#F4F5F7;strokeColor=#B3BAC5;fontColor=#344563;fontSize=13;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="55" y="420" width="1030" height="42" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

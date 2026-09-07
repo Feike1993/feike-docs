@@ -57,6 +57,16 @@
   color: var(--ifm-color-success-lightest, #8dffb0);
 }
 
+.toolBadge[data-tool='drawio'] {
+  color: #974f0c;
+  background: color-mix(in srgb, #ff8b00 14%, transparent);
+  border-color: color-mix(in srgb, #ff8b00 32%, transparent);
+}
+
+[data-theme='dark'] .toolBadge[data-tool='drawio'] {
+  color: #ffbd7a;
+}
+
 .title {
   font-size: 1rem;
   font-weight: 650;
@@ -79,6 +89,14 @@
 .canvas :global(.mermaid) {
   display: flex;
   justify-content: center;
+}
+
+.canvas :global(img) {
+  display: block;
+  width: 100%;
+  min-width: 42rem;
+  height: auto;
+  margin: 0;
 }
 
 .archifyWrap {

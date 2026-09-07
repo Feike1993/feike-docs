@@ -3,7 +3,7 @@ import clsx from 'clsx';
 
 import styles from './styles.module.css';
 
-export type DiagramTool = 'mermaid' | 'archify';
+export type DiagramTool = 'mermaid' | 'archify' | 'drawio';
 
 type DiagramFrameProps = {
   title: string;
@@ -16,10 +16,11 @@ type DiagramFrameProps = {
 const TOOL_LABEL: Record<DiagramTool, string> = {
   mermaid: 'Mermaid',
   archify: 'Archify',
+  drawio: 'draw.io',
 };
 
 /**
- * 架构图外框：工具标签 + 标题说明，统一 Mermaid / Archify 样例观感。
+ * 架构图外框：工具标签 + 标题说明，统一 Mermaid / Archify / draw.io 样例观感。
  */
 export default function DiagramFrame({
   title,
