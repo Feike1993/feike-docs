@@ -84,6 +84,8 @@ GC 必须有 `-Xlog:gc*`，否则排停顿只能靠猜。Java 25 的 JFR 在 CPU
 
 `jhsdb jmap` / MAT 分析 hprof 的步骤与版本无关：先 Dominator Tree 和 leak suspect，不要一上来翻几千万对象。
 
+生产也可 attach [Arthas](./arthas.mdx)，用 `dashboard` / `thread` 做实时面板与方法级观察，再决定要不要拉 dump 或改参。
+
 ## CPU 高
 
 先看 GC 是否在忙：`jstat -gcutil` 里 `FGC`/`YGC` 频率、GC 日志里单次暂停和吞吐。GC 占满 CPU 时加应用线程数没有用。
