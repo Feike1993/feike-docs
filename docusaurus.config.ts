@@ -83,15 +83,15 @@ const config: Config = {
       items: [
         {
           type: 'docSidebar',
-          sidebarId: 'aiSidebar',
-          position: 'left',
-          label: 'AI',
-        },
-        {
-          type: 'docSidebar',
           sidebarId: 'aiExampleSidebar',
           position: 'left',
           label: 'ai-example',
+        },
+        {
+          type: 'docSidebar',
+          sidebarId: 'aiSidebar',
+          position: 'left',
+          label: 'AI 编程',
         },
         {
           type: 'docSidebar',
