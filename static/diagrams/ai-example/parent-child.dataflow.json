@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "ai-example 父子文档",
+    "locale": "zh-CN",
+    "output": "parent-child.html",
+    "viewBox": [1068, 700],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "build", "label": "建索引", "focus": ["doc", "parent", "child", "store"], "note": "父语义切，子硬切入库。" },
+      { "id": "recall", "label": "召回", "focus": ["query", "store", "child"], "note": "只检索子块。" },
+      { "id": "expand", "label": "展开", "focus": ["child", "expand", "gen"], "note": "命中后展开父全文进 LLM。" }
+    ]
+  },
+  "stages": [
+    { "label": "文档" },
+    { "label": "两级" },
+    { "label": "入库" },
+    { "label": "检索" },
+    { "label": "生成" }
+  ],
+  "nodes": [
+    { "id": "doc", "type": "frontend", "label": "Markdown", "sublabel": "长章节", "stage": 0, "row": 2, "tag": "src" },
+    { "id": "parent", "type": "backend", "label": "父块", "sublabel": "语义切", "stage": 1, "row": 1, "tag": "parent" },
+    { "id": "child", "type": "backend", "label": "子块", "sublabel": "硬切", "stage": 1, "row": 3, "tag": "child" },
+    { "id": "store", "type": "database", "label": "只存子块", "sublabel": "+parentText", "stage": 2, "row": 2, "tag": "vector" },
+    { "id": "query", "type": "frontend", "label": "用户问题", "sublabel": "online", "stage": 3, "row": 0, "tag": "ask" },
+    { "id": "expand", "type": "backend", "label": "展开父块", "sublabel": "去重 parentId", "stage": 3, "row": 3, "tag": "expand" },
+    { "id": "gen", "type": "cloud", "label": "Chat", "sublabel": "父上下文", "stage": 4, "row": 2, "tag": "gen" }
+  ],
+  "flows": [
+    { "id": "d-p", "from": "doc", "to": "parent", "label": "语义切", "variant": "emphasis", "route": "straight" },
+    { "id": "p-c", "from": "parent", "to": "child", "label": "硬切", "variant": "emphasis", "route": "vertical-channel" },
+    { "id": "c-s", "from": "child", "to": "store", "label": "Embedding", "variant": "emphasis", "route": "straight" },
+    { "id": "q-s", "from": "query", "to": "store", "label": "检索子块", "variant": "emphasis", "route": "vertical-channel" },
+    { "id": "s-e", "from": "store", "to": "expand", "label": "命中", "variant": "emphasis", "route": "vertical-channel" },
+    { "id": "e-g", "from": "expand", "to": "gen", "label": "父全文", "variant": "emphasis", "route": "straight" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "解耦粒度", "items": ["子块好检索", "父块好生成", "父文进 metadata"] },
+    { "dot": "orange", "title": "代价", "items": ["parentText 复制膨胀", "父/子参数都要调", "可关闭 expand"] },
+    { "dot": "cyan", "title": "对照", "items": ["独立 corpus", "可与 token/semantic 三路比"] }
+  ]
+}

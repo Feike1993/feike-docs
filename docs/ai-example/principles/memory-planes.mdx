@@ -1,0 +1,152 @@
+---
+sidebar_position: 4
+title: 三种记忆平面
+description: 会话窗口与长期记忆底层逻辑；与 RAG 分源；Archify 架构图对照源码
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# 三种记忆平面
+
+对应 sample **07 / 11–12 / 25**。会话短窗、跨会话用户事实、知识库文档是三类不同数据——先管好窗口，再把长期事实与 RAG 语料分源。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="多轮对话历史无限增长会撑爆窗口、抬高费用，且旧消息不一定都该进模型。会话裁剪后，长期偏好/事实会丢；若把一切塞进短上下文又贵又不稳。"
+  rightTitle="目的"
+  right="在应用侧存会话，并按条数/token 预算裁剪后再调用模型；同时把长期事实显式写入独立 corpus，按 `userId` 召回，与文档 RAG 共用向量库但语义分离。"
+/>
+
+## 架构图
+
+下图示意上述解法，后续步骤按图展开。
+
+<DiagramFrame
+  title="会话 · 长期记忆 · RAG"
+  tool="archify"
+  description="API 编排入口分别读写三平面；记忆与 RAG 分库。">
+
+  <ArchifyEmbed
+    src="/diagrams/ai-example/memory-planes.html"
+    title="ai-example 三种记忆平面"
+    height={680}
+  />
+
+</DiagramFrame>
+
+## 流程步骤
+
+### 会话窗口
+
+1. **会话存在应用侧**  
+   `ChatSessionStore`：jdbc 写 `chat_session_message`；memory 为 `ConcurrentHashMap`。
+
+2. **先预算，再调用**  
+   按 `maxMessages` / `tokenBudget` 选出送入模型的子集，再追加本轮 user。
+
+3. **响应带回可观测字段**  
+   `rawMessageCount` / `sentMessageCount` / `approxTokens` / `droppedCount` / `summary`。
+
+### 长期记忆（与 RAG 边界）
+
+4. **同一 vector_store，不同 corpus**  
+   用 metadata 过滤 `userId` + `corpus`，不必新建物理表（如 `long-term-memory` vs `ai-example-demo`）。
+
+5. **写入是显式的**  
+   本样例不自动从对话抽取事实；生产可另加抽取 Agent。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>
+        <strong>会话窗口</strong>
+        <ul>
+          <li>会话可控、可切换 memory/jdbc 存储。</li>
+          <li>预算策略透明（`droppedCount` 等）。</li>
+          <li>与「模型自带记忆」解耦，便于审计。</li>
+        </ul>
+      </li>
+      <li>
+        <strong>长期记忆</strong>
+        <ul>
+          <li>跨会话保留用户级事实。</li>
+          <li>与知识库 corpus 隔离，减少串味。</li>
+          <li>写入显式，便于治理与删除。</li>
+        </ul>
+      </li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>
+        <strong>会话窗口</strong>
+        <ul>
+          <li>裁剪可能丢掉关键旧事实。</li>
+          <li>近似 token 与真实计费仍有偏差。</li>
+          <li>摘要策略需额外设计，本样例偏裁剪。</li>
+        </ul>
+      </li>
+      <li>
+        <strong>长期记忆</strong>
+        <ul>
+          <li>本样例不自动抽取，靠调用方 `remember`。</li>
+          <li>事实冲突、过期需额外策略。</li>
+          <li>召回质量仍受分块与 Embedding 影响。</li>
+        </ul>
+      </li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 多轮客服、辅导类会话；需要限制单次请求上下文成本的产品。
+- 记住用户昵称、偏好、项目背景；个人助理中「长期画像」与「文档问答」并存。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: '会话 / trim / summarize',
+      path: 'java/.../samples/context/',
+      note: 'ContextSample；上下文预算。',
+    },
+    {
+      node: '长期记忆',
+      path: 'java/.../samples/memory/',
+      note: 'MemorySampleService；独立 pgvector corpus。',
+    },
+    {
+      node: 'RAG 语料',
+      path: 'java/.../samples/rag/RagSampleService.java',
+      note: 'demo corpus；与记忆元数据分离。',
+    },
+    {
+      node: '双路径比较',
+      path: 'java/.../samples/rag/',
+      note: 'sample 25：memoryHints ≠ RAG sources。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| 三分平面 | 引用与治理清晰；编排层稍复杂 |
+| 记忆召回进 chat | 像「用户事实」而非文档 citation |
+| 会话可持久化 | Jdbc 会话对照内存，便于多实例 |
+
+## 刻意不做
+
+- 不把记忆 facts 标成 RAG `sourceId`  
+- 不上统一「万能记忆中台」产品形态  
+
+源码：[ai-example](https://github.com/Feike1993/ai-example) context / memory / rag。

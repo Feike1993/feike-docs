@@ -1,0 +1,73 @@
+---
+sidebar_position: 1
+title: Eval Harness
+description: Golden suite 与 offline 断言；Archify 对照源码
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# Eval Harness
+
+对应 sample **10**。用最小 offline harness 对样例目标跑断言。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="样例与 Prompt 改动后缺少可重复的回归手段，靠人工点几下容易漏回归。"
+  rightTitle="目的"
+  right="用最小 offline harness 对 tools/agent/rag/multiagent 等目标跑断言，快速发现破坏性改动。"
+/>
+
+## 架构图
+
+下图示意上述解法，后续步骤按图展开。
+
+<DiagramFrame title="Eval 位置" tool="archify" description="golden → harness 直调样例 Service → 报告。">
+  <ArchifyEmbed src="/diagrams/ai-example/eval.html" title="Eval Harness" height={500} />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **Harness 里的 Evaluator** — 与 Memory / Tools / Agent 并列；只做最小 offline 断言。  
+2. **target 枚举** — `tools | agentReact | rag | multiagent`，复用现有样例。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>可脚本化、可进 CI 思路清晰。</li>
+      <li>复用已有样例目标，增量加 case 成本低。</li>
+      <li>失败信息比「感觉不对」可定位。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>本仓是最小断言，非完整评测平台。</li>
+      <li>断言过严易脆，过松易漏。</li>
+      <li>不覆盖线上真实流量分布。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 改 Prompt / 工具 / 检索后的冒烟回归。
+- 演示「评测在 Harness 中的位置」。
+
+## 源码落点
+
+<SourceMap items={[
+  { node: '评测服务', path: 'java/.../samples/eval/', note: 'EvalSampleService；POST /eval/run。' },
+  { node: 'Golden', path: 'classpath:eval/golden/*.json', note: 'mustContain / tools / sources。' },
+]} />
+
+## 刻意不做
+
+- 不做 LangSmith 式 tracing 产品  
+- 不上线上流量评测  
+
+源码：[ai-example](https://github.com/Feike1993/ai-example)。

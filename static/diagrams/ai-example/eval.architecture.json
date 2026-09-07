@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example Eval Harness",
+    "locale": "zh-CN",
+    "viewBox": [960, 420],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "cases", "label": "Golden", "focus": ["golden", "harness"], "note": "JSON 用例。" },
+      { "id": "run", "label": "执行", "focus": ["harness", "targets"], "note": "直调 Service。" },
+      { "id": "report", "label": "报告", "focus": ["harness", "report"], "note": "通过率。" }
+    ]
+  },
+  "components": [
+    { "id": "golden", "type": "database", "label": "golden/*.json", "sublabel": "断言", "pos": [40, 170], "size": [140, 56] },
+    { "id": "harness", "type": "backend", "label": "Eval Harness", "sublabel": "/eval/run", "pos": [260, 170], "size": [150, 56], "tag": "offline" },
+    { "id": "targets", "type": "backend", "label": "样例目标", "sublabel": "tools/agent/rag", "pos": [500, 170], "size": [150, 56] },
+    { "id": "report", "type": "frontend", "label": "报告", "sublabel": "通过率", "pos": [740, 170], "size": [120, 56] }
+  ],
+  "connections": [
+    { "id": "g-h", "from": "golden", "to": "harness", "label": "加载", "variant": "emphasis" },
+    { "id": "h-t", "from": "harness", "to": "targets", "label": "直调 Service", "variant": "emphasis" },
+    { "id": "h-p", "from": "targets", "to": "report", "label": "断言结果", "variant": "emphasis" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "位置", "items": ["与样例并列", "最小 offline 断言"] },
+    { "dot": "orange", "title": "非平台", "items": ["非 LangSmith", "断言松紧要调"] },
+    { "dot": "cyan", "title": "场景", "items": ["改 Prompt 冒烟", "演示评测落点"] }
+  ]
+}

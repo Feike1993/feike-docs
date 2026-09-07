@@ -1,0 +1,114 @@
+---
+sidebar_position: 5
+title: MCP 进程边界
+description: MCP 底层逻辑：问题、目的、优缺点、场景与流程；远端/同进程与 Bearer；Archify 对照源码
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# MCP 进程边界
+
+对应 sample **05 / 13 / 19**。Function Calling 是 LLM 能力；MCP 是工具接入协议；Agent 是 Loop + Tools 的系统概念。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="工具若只活在单一进程内，难被其他 Host 复用；各家自定义插件协议碎片化。"
+  rightTitle="目的"
+  right="用 MCP（JSON-RPC）把同一批工具暴露给 Client，支持远端 Server 与同进程双模式对照。"
+/>
+
+## 架构图
+
+下图示意上述解法，后续步骤按图展开。
+
+<DiagramFrame
+  title="MCP：同进程与远端"
+  tool="archify"
+  description="mode 选择 inprocess 或 HTTP /mcp；Bearer 在远端进程校验。">
+
+  <ArchifyEmbed
+    src="/diagrams/ai-example/mcp-boundary.html"
+    title="ai-example MCP 进程边界"
+    height={680}
+  />
+
+</DiagramFrame>
+
+## 流程步骤
+
+1. **先有工具，再有协议外壳**  
+   仍是 `@Tool` / JSON Schema；MCP Server 把同一批工具用 JSON-RPC 暴露出去，Client 发现后挂到 `ChatClient`。
+
+2. **远端与同进程并存**  
+   主应用同时备好 `SyncMcpToolCallbackProvider` 与 `mcpServerTools`；按运行时 mode 选用。remote 需先起 `mcp-server`（8081）。
+
+3. **对照本地 Tool Calling**  
+   `POST /tools` 是进程内 `.tools(bean)`；`POST /mcp/chat` 的 `toolNames` 来自当前 mode 的工具源。
+
+**Bearer（sample 19）**：Streamable HTTP 需最小凭证约定——Server 校验 `Authorization: Bearer`，Client 注入同密钥；无/错 → 401。inprocess 不走 HTTP，不要求 Bearer。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>工具可跨 Host 复用，协议标准化。</li>
+      <li>与本地 `@Tool` 心智一致，迁移成本低。</li>
+      <li>远端/同进程可切换，便于开发与演示。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>多一跳网络与进程运维（remote 模式）。</li>
+      <li>生态与鉴权模型仍在演进。</li>
+      <li>工具发现与版本兼容需额外约定。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 把内部工具以标准协议提供给 IDE/Agent Host。
+- 本地开发用 inprocess，联调用 remote Server。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: 'MCP Client / 样例 API',
+      path: 'java/.../samples/mcp/',
+      note: 'McpSampleController / Service；mode 切换。',
+    },
+    {
+      node: '独立 Server',
+      path: 'mcp-server/',
+      note: 'Streamable HTTP :8081；工具实现。',
+    },
+    {
+      node: 'Bearer',
+      path: 'mcp-server/ + samples/mcp/',
+      note: 'sample 19：Client 注入、Server 校验。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| 先 inprocess | 降低协议学习成本；无真实网络边界 |
+| 懒连 remote | 启动不拖垮；连不上变接口 503 |
+| Bearer 单独样例 | 协议层与业务鉴权解耦（非 OAuth 产品面） |
+
+## 刻意不做
+
+- 不在构造期强连旁进程  
+- 不把 MCP 当成唯一 Agent 总线  
+- Bearer 样例不引入 OAuth/JWT 多用户 ACL  
+
+源码：[ai-example mcp](https://github.com/Feike1993/ai-example) · [mcp-server](https://github.com/Feike1993/ai-example/tree/main/mcp-server)。

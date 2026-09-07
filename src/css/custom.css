@@ -66,3 +66,37 @@ main .container {
   height: auto;
   display: block;
 }
+
+/* ai-example 原理页：压缩标题与段间距，避免短段悬空 */
+.principleDoc .markdown h2 {
+  margin-top: 1.1rem;
+  margin-bottom: 0.35rem;
+}
+
+.principleDoc .markdown h2:first-of-type {
+  margin-top: 0.85rem;
+}
+
+.principleDoc .markdown h2 + p,
+.principleDoc .markdown h2 + ul,
+.principleDoc .markdown h2 + ol {
+  margin-top: 0.25rem;
+}
+
+.principleDoc .markdown p {
+  margin-bottom: 0.7rem;
+}
+
+.principleDoc .markdown ul,
+.principleDoc .markdown ol {
+  margin-bottom: 0.75rem;
+}
+
+.principleDoc .markdown li {
+  margin: 0.25rem 0;
+}
+
+.principleDoc .markdown table {
+  margin-bottom: 0.85rem;
+}
+

@@ -1,0 +1,75 @@
+---
+sidebar_position: 3
+title: 语义分块
+description: Token 切 vs 结构感知切；双 corpus 对照；Archify 对照源码
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# 语义分块
+
+对应 sample **15**。按 Markdown 标题/空行结构切段，与固定 token 切对照。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="固定 token 切分常在章节中间切断，检索命中片段缺标题语境，生成易断章取义。"
+  rightTitle="目的"
+  right="按 Markdown 标题/空行结构切段并软合并，得到更贴近语义边界的块，并与 token 切对照。"
+/>
+
+## 架构图
+
+下图示意上述解法，后续步骤按图展开。
+
+<DiagramFrame title="Token vs 语义切" tool="archify" description="两套路经入库不同 corpus，查询可选对照。">
+  <ArchifyEmbed src="/diagrams/ai-example/semantic-chunk.html" title="语义分块" height={600} />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **标题切** — 在 `#{1,3}` 标题行前切开，标题留在下一块开头。  
+2. **空行切段落** — 按连续空行切段落；空节仍保留标题锚点。  
+3. **首段注入标题前缀** — 同节首段加标题前缀，便于 Embedding。  
+4. **软合并到 chunk-size** — 再与 token 语料双 corpus 并存对照。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>块边界更贴章节，减少跨节混装。</li>
+      <li>确定性、无 LLM，可复现、成本低。</li>
+      <li>双 corpus 可量化对比召回差异。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>依赖 Markdown 结构，乱文档效果差。</li>
+      <li>非生产级解析器，复杂语法覆盖有限。</li>
+      <li>超长段硬切仍可能断句（Java）。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 技术文档、手册等标题层级清晰的语料。
+- 评估「结构感知切」相对固定长度切的收益。
+
+## 源码落点
+
+<SourceMap items={[
+  { node: '语义切分器', path: 'java/.../rag/SemanticMarkdownSplitter.java', note: '结构感知切段。' },
+  { node: 'ingest / 查询', path: 'java/.../rag/RagSampleService.java', note: '双 corpus；chunking 元数据。' },
+]} />
+
+## 刻意不做
+
+- 不用 LLM 做分块  
+- 默认 query 仍可走 token corpus，保证旧样例  
+
+源码：[ai-example](https://github.com/Feike1993/ai-example)。

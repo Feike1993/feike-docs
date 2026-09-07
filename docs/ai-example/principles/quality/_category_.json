@@ -1,0 +1,9 @@
+{
+  "label": "质量护栏",
+  "position": 13,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Eval harness、Output Guardrail。"
+  }
+}

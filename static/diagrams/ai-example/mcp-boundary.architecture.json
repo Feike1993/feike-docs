@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example MCP 进程边界",
+    "locale": "zh-CN",
+    "viewBox": [1040, 620],
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "inprocess",
+        "label": "同进程",
+        "focus": ["app", "client", "inproc"],
+        "note": "早期样例：Server/Client 同 JVM。"
+      },
+      {
+        "id": "remote",
+        "label": "远端进程",
+        "focus": ["app", "client", "http", "server"],
+        "note": "独立 mcp-server，Client 懒连。"
+      },
+      {
+        "id": "bearer",
+        "label": "Bearer",
+        "focus": ["client", "auth", "server"],
+        "note": "Client 注入 Authorization，Server 校验。"
+      }
+    ]
+  },
+  "components": [
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "Playground", "pos": [40, 260], "size": [110, 56] },
+    { "id": "app", "type": "backend", "label": "ai-example", "sublabel": ":8080", "pos": [210, 260], "size": [130, 56] },
+    { "id": "client", "type": "backend", "label": "MCP Client", "sublabel": "懒初始化", "pos": [400, 260], "size": [130, 56], "tag": "mode" },
+    { "id": "inproc", "type": "backend", "label": "Inprocess", "sublabel": "同 JVM", "pos": [400, 100], "size": [130, 56], "tag": "early" },
+    { "id": "http", "type": "cloud", "label": "HTTP /mcp", "sublabel": "Streamable", "pos": [600, 260], "size": [130, 56] },
+    { "id": "server", "type": "backend", "label": "mcp-server", "sublabel": ":8081", "pos": [800, 260], "size": [130, 56] },
+    { "id": "auth", "type": "security", "label": "Bearer", "sublabel": "校验 token", "pos": [800, 100], "size": [130, 56], "tag": "auth" },
+    { "id": "tools", "type": "messagebus", "label": "工具实现", "sublabel": "业务能力", "pos": [800, 420], "size": [130, 56] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "主应用进程", "wraps": ["app", "client", "inproc"] },
+    { "kind": "security-group", "label": "远端 MCP 进程", "wraps": ["server", "auth", "tools"] }
+  ],
+  "connections": [
+    { "id": "u-app", "from": "user", "to": "app", "label": "请求", "variant": "emphasis" },
+    { "id": "app-client", "from": "app", "to": "client", "label": "选 mode", "variant": "emphasis" },
+    { "id": "client-inproc", "from": "client", "to": "inproc", "label": "inprocess", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "labelDy": -40 },
+    { "id": "client-http", "from": "client", "to": "http", "label": "remote", "variant": "emphasis" },
+    { "id": "http-server", "from": "http", "to": "server", "label": "MCP", "variant": "emphasis" },
+    { "id": "bearer", "from": "http", "to": "auth", "label": "Bearer", "variant": "security", "fromSide": "top", "toSide": "left", "via": [[665, 128], [800, 128]], "labelDy": -20 },
+    { "id": "auth-server", "from": "auth", "to": "server", "label": "放行", "variant": "security", "fromSide": "bottom", "toSide": "top", "labelDy": 24 },
+    { "id": "server-tools", "from": "server", "to": "tools", "label": "调工具", "variant": "default", "fromSide": "bottom", "toSide": "top", "labelDy": 24 }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "协议 vs 部署",
+      "items": [
+        "MCP 标准化工具描述与调用",
+        "inprocess 先学协议",
+        "remote 才暴露进程边界"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "懒连",
+      "items": [
+        "构造期不强连旁进程",
+        "连不上接口 503",
+        "不拖垮应用启动"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Bearer",
+      "items": [
+        "协议层 ≠ 业务鉴权",
+        "Client 注入、Server 校验",
+        "对应 sample 19"
+      ]
+    }
+  ]
+}

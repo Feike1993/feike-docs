@@ -1,0 +1,119 @@
+---
+sidebar_position: 3
+title: RAG 离线 / 在线管线
+description: RAG 底层逻辑：问题、目的、优缺点、场景与流程；Archify dataflow 对照源码
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# RAG 离线 / 在线管线
+
+对应 sample **06**。离线分块 Embedding 入库，在线检索片段拼进提示，让回答 grounded 在 sources。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="模型参数内知识过时且易幻觉；私有/长尾文档无法靠微调即时接入。"
+  rightTitle="目的"
+  right="离线分块 Embedding 入库，在线检索相关片段拼进提示，让回答 grounded 在 sources。"
+/>
+
+## 架构图
+
+下图示意上述解法，后续步骤按图展开。
+
+<DiagramFrame
+  title="RAG 数据流"
+  tool="archify"
+  description="五段舞台：语料 → 离线索引 → 向量库 → 在线检索 → 生成。">
+
+  <ArchifyEmbed
+    src="/diagrams/ai-example/rag-pipeline.html"
+    title="ai-example RAG 离线 / 在线管线"
+    height={740}
+  />
+
+</DiagramFrame>
+
+规格：`static/diagrams/ai-example/rag-pipeline.dataflow.json`。
+
+## 流程步骤
+
+1. **分块权衡**  
+   块太大丢精度，太小丢语义；本演示用 `TokenTextSplitter` 固定 `chunkSize`。
+
+2. **向量检索只是召回**  
+   相似度高不等于事实对；必须把原文片段交给模型，并在 UI 展示 sources。
+
+3. **幂等 ingest**  
+   按 corpus 元数据删旧 chunk 再写入，避免重复索引把召回冲乱。
+
+补充（样例 concepts）：空检索命中不足时默认 `skip-llm-when-empty` 直接拒答；Embedding 与 Chat Provider 分离（本仓 Embedding 固定 DashScope `text-embedding-v3`）。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>知识可更新：改文档再 ingest，无需重训模型。</li>
+      <li>可展示出处，便于人工核对。</li>
+      <li>与 Chat Provider 解耦（本仓 Embedding 固定）。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>分块与检索质量决定上限（GIGO）。</li>
+      <li>固定长度切分易切断章节语义。</li>
+      <li>空检索若仍生成，易编造；需拒答策略。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 企业知识库问答、产品文档助手。
+- 需要可追溯引用来源的答疑场景。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: '分块 / 写入 / 检索 / 生成',
+      path: 'java/.../samples/rag/RagSampleService.java',
+      note: 'ingest、SearchRequest、EMPTY_REFUSAL、接地 system。',
+    },
+    {
+      node: 'HTTP 入口',
+      path: 'java/.../samples/rag/RagSampleController.java',
+      note: 'Playground / OpenAPI。',
+    },
+    {
+      node: 'pgvector 装配',
+      path: 'java/.../samples/rag/RagInfrastructureConfiguration.java',
+      note: 'VectorStore 条件装配。',
+    },
+    {
+      node: '语义分块（进阶）',
+      path: 'java/.../samples/rag/SemanticMarkdownSplitter.java',
+      note: '结构感知切分；基线可用 TokenTextSplitter。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| Chat ≠ Embedding | 聊天可换端；向量维度固定防混用 |
+| 空结果不调 LLM | 少幻觉、少 token；拒答体验需说明 |
+| corpus 元数据 | 幂等重建与过滤删除 |
+
+## 刻意不做
+
+- 不把记忆 facts 与 RAG chunks 混进同一 citation 列表（见 [记忆平面](./memory-planes)）  
+
+进阶（Hybrid / HyDE / 分块 / Citation）见 [Hybrid RAG](./hybrid-retrieval/hybrid-rag) 起各页。

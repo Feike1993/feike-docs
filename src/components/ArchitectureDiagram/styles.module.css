@@ -1,0 +1,203 @@
+.frame {
+  margin: 1.25rem 0 1.75rem;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--ifm-color-emphasis-300) 80%, transparent);
+  border-radius: 14px;
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--ifm-color-primary) 8%, var(--ifm-background-surface-color)) 0%,
+      var(--ifm-background-surface-color) 42%,
+      color-mix(in srgb, var(--ifm-color-primary) 4%, var(--ifm-background-surface-color)) 100%
+    );
+  overflow: hidden;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--ifm-color-emphasis-200) 60%, transparent);
+}
+
+.caption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.9rem 1.1rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--ifm-color-emphasis-200) 90%, transparent);
+}
+
+.captionMain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.75rem;
+}
+
+.toolBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.toolBadge[data-tool='mermaid'] {
+  color: var(--ifm-color-primary);
+  background: color-mix(in srgb, var(--ifm-color-primary) 14%, transparent);
+  border-color: color-mix(in srgb, var(--ifm-color-primary) 28%, transparent);
+}
+
+.toolBadge[data-tool='archify'] {
+  color: var(--ifm-color-success-darkest, #1a7f4b);
+  background: color-mix(in srgb, var(--ifm-color-success) 16%, transparent);
+  border-color: color-mix(in srgb, var(--ifm-color-success) 32%, transparent);
+}
+
+[data-theme='dark'] .toolBadge[data-tool='archify'] {
+  color: var(--ifm-color-success-lightest, #8dffb0);
+}
+
+.title {
+  font-size: 1rem;
+  font-weight: 650;
+  color: var(--ifm-heading-color);
+}
+
+.description {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.canvas {
+  padding: 0.85rem 0.9rem 1rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.canvas :global(.mermaid) {
+  display: flex;
+  justify-content: center;
+}
+
+.archifyWrap {
+  width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--ifm-background-color);
+  border: 1px solid color-mix(in srgb, var(--ifm-color-emphasis-200) 90%, transparent);
+}
+
+.archifyFrame {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+}
+
+.sourceMap {
+  margin: 1.5rem 0 0.5rem;
+}
+
+.sourceMapTitle {
+  margin: 0 0 0.75rem;
+  font-size: 1.15rem;
+}
+
+.sourceMapList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.sourceMapItem {
+  padding: 0.85rem 0.95rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--ifm-color-emphasis-300) 70%, transparent);
+  background: color-mix(in srgb, var(--ifm-background-surface-color) 92%, var(--ifm-color-primary));
+}
+
+.sourceMapNode {
+  font-weight: 650;
+  margin-bottom: 0.35rem;
+  color: var(--ifm-heading-color);
+}
+
+.sourceMapPath {
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  word-break: break-all;
+  white-space: pre-wrap;
+  padding: 0.35rem 0.45rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--ifm-code-background) 88%, transparent);
+}
+
+.sourceMapNote {
+  margin: 0.45rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* 原理页：问题|目的、优点|缺点 双栏 */
+.logicPair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
+  margin: 0.85rem 0 1rem;
+}
+
+.logicCell {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--ifm-color-emphasis-300) 70%, transparent);
+  background: color-mix(in srgb, var(--ifm-background-surface-color) 94%, var(--ifm-color-primary));
+}
+
+.logicTitle {
+  margin: 0 0 0.35rem !important;
+  font-size: 1.05rem !important;
+  line-height: 1.35;
+}
+
+.logicBody {
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.logicBody > :first-child {
+  margin-top: 0;
+}
+
+.logicBody > :last-child {
+  margin-bottom: 0;
+}
+
+.logicBody :global(ul),
+.logicBody :global(ol) {
+  margin: 0.2rem 0 0;
+  padding-left: 1.15rem;
+}
+
+.logicBody :global(li) {
+  margin: 0.2rem 0;
+}
+
+.logicBody :global(p) {
+  margin: 0.25rem 0;
+}
+
+@media (max-width: 996px) {
+  .logicPair {
+    grid-template-columns: 1fr;
+  }
+}
+

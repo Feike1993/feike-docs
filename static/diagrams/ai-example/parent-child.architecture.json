@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example 父子文档",
+    "locale": "zh-CN",
+    "viewBox": [980, 520],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "build", "label": "建索引", "focus": ["doc", "parent", "child", "store"], "note": "父语义切，子硬切入库。" },
+      { "id": "recall", "label": "召回", "focus": ["query", "store", "child"], "note": "只检索子块。" },
+      { "id": "expand", "label": "展开", "focus": ["child", "expand", "gen"], "note": "展开父全文进 LLM。" }
+    ]
+  },
+  "components": [
+    { "id": "doc", "type": "frontend", "label": "Markdown", "sublabel": "长章节", "pos": [40, 220], "size": [120, 56] },
+    { "id": "parent", "type": "backend", "label": "父块", "sublabel": "语义切", "pos": [220, 100], "size": [120, 56], "tag": "parent" },
+    { "id": "child", "type": "backend", "label": "子块", "sublabel": "硬切", "pos": [220, 340], "size": [120, 56], "tag": "child" },
+    { "id": "store", "type": "database", "label": "只存子块", "sublabel": "+parentText", "pos": [420, 340], "size": [140, 56] },
+    { "id": "query", "type": "frontend", "label": "用户问题", "sublabel": "online", "pos": [420, 100], "size": [120, 56] },
+    { "id": "expand", "type": "backend", "label": "展开父块", "sublabel": "去重", "pos": [640, 220], "size": [120, 56] },
+    { "id": "gen", "type": "cloud", "label": "Chat", "sublabel": "父上下文", "pos": [840, 220], "size": [120, 56] }
+  ],
+  "connections": [
+    { "id": "d-p", "from": "doc", "to": "parent", "label": "语义切", "fromSide": "top", "toSide": "left", "via": [[100, 128], [220, 128]] },
+    { "id": "p-c", "from": "parent", "to": "child", "label": "硬切", "fromSide": "bottom", "toSide": "top", "labelDy": 24 },
+    { "id": "c-s", "from": "child", "to": "store", "label": "Embedding", "variant": "emphasis" },
+    { "id": "q-s", "from": "query", "to": "store", "label": "检索子块", "fromSide": "bottom", "toSide": "top", "labelDy": 24 },
+    { "id": "s-e", "from": "store", "to": "expand", "label": "命中", "variant": "emphasis", "fromSide": "right", "toSide": "bottom", "via": [[600, 368], [700, 368], [700, 276]] },
+    { "id": "e-g", "from": "expand", "to": "gen", "label": "父全文", "variant": "emphasis" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "解耦粒度", "items": ["子块好检索", "父块好生成"] },
+    { "dot": "orange", "title": "代价", "items": ["parentText 复制", "参数更复杂"] },
+    { "dot": "cyan", "title": "对照", "items": ["独立 corpus", "可关 expand"] }
+  ]
+}

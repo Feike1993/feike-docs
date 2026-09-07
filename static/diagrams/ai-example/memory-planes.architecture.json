@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example 三种记忆平面",
+    "locale": "zh-CN",
+    "viewBox": [1000, 600],
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "session",
+        "label": "会话窗口",
+        "focus": ["user", "api", "session"],
+        "note": "短对话靠 trim / summarize 控上下文预算。"
+      },
+      {
+        "id": "long-memory",
+        "label": "长期记忆",
+        "focus": ["api", "memory", "memdb"],
+        "note": "事实写入独立 pgvector corpus。"
+      },
+      {
+        "id": "rag-plane",
+        "label": "RAG 语料",
+        "focus": ["api", "rag", "ragdb"],
+        "note": "知识库与记忆分源。"
+      }
+    ]
+  },
+  "components": [
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "Playground", "pos": [40, 260], "size": [120, 56] },
+    { "id": "api", "type": "backend", "label": "API", "sublabel": "编排入口", "pos": [230, 260], "size": [130, 56] },
+    { "id": "session", "type": "database", "label": "会话存储", "sublabel": "Jdbc / 内存", "pos": [450, 80], "size": [140, 56], "tag": "窗口" },
+    { "id": "memory", "type": "backend", "label": "记忆服务", "sublabel": "提取 / 召回", "pos": [450, 260], "size": [140, 56], "tag": "facts" },
+    { "id": "rag", "type": "backend", "label": "RAG 服务", "sublabel": "检索生成", "pos": [450, 440], "size": [140, 56], "tag": "docs" },
+    { "id": "memdb", "type": "database", "label": "记忆向量库", "sublabel": "memory corpus", "pos": [700, 260], "size": [150, 56] },
+    { "id": "ragdb", "type": "database", "label": "RAG 向量库", "sublabel": "demo corpus", "pos": [700, 440], "size": [150, 56] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "会话平面", "wraps": ["session"] },
+    { "kind": "region", "label": "长期记忆平面", "wraps": ["memory", "memdb"] },
+    { "kind": "region", "label": "RAG 语料平面", "wraps": ["rag", "ragdb"] }
+  ],
+  "connections": [
+    { "id": "u-api", "from": "user", "to": "api", "label": "提问", "variant": "emphasis" },
+    { "id": "api-session", "from": "api", "to": "session", "label": "历史", "fromSide": "top", "toSide": "left", "via": [[295, 108], [450, 108]], "labelAt": [360, 96] },
+    { "id": "api-mem", "from": "api", "to": "memory", "label": "召回", "variant": "emphasis" },
+    { "id": "api-rag", "from": "api", "to": "rag", "label": "检索", "fromSide": "bottom", "toSide": "left", "via": [[295, 468], [450, 468]], "labelAt": [360, 456] },
+    { "id": "mem-db", "from": "memory", "to": "memdb", "label": "facts", "variant": "emphasis" },
+    { "id": "rag-db", "from": "rag", "to": "ragdb", "label": "chunks" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "会话窗口",
+      "items": [
+        "管本轮对话消息",
+        "trim / summarize 控 token",
+        "可持久化到 PostgreSQL"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "长期记忆",
+      "items": [
+        "跨会话事实，独立 corpus",
+        "召回注入 chat，非 RAG sources",
+        "可显式 remember / 抽取"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "不要混源",
+      "items": [
+        "记忆 hints ≠ 文档 citation",
+        "RAG 与 Memory 分库",
+        "对照 sample 25"
+      ]
+    }
+  ]
+}

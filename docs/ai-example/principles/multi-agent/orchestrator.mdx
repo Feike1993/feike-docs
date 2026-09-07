@@ -1,0 +1,73 @@
+---
+sidebar_position: 1
+title: 多 Agent 编排
+description: Orchestrator–Subagent 底层逻辑；Archify 对照源码
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# 多 Agent 编排
+
+对应 sample **08**。多 Agent ≠ 多个 API Key；核心是信息边界与交接。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="单一 Agent 身兼调研与执笔时易幻觉数字、工具边界模糊，长轨迹难控。"
+  rightTitle="目的"
+  right="编排者结构化分工：调研专员带工具取材料，执笔专员无工具只生成终答。"
+/>
+
+## 架构图
+
+下图示意上述解法，后续步骤按图展开。
+
+<DiagramFrame title="Orchestrator–Subagent" tool="archify" description="编排分流；调研挂工具，执笔只成文。">
+  <ArchifyEmbed src="/diagrams/ai-example/multi-agent.html" title="多 Agent" height={540} />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **编排者结构化决策** — `StructuredOutputInvoker` 解析 `next=researcher|writer`。  
+2. **调研专员复用 ReAct** — 挂 DemoTools，受限 `maxWorkerSteps`，材料写回。  
+3. **执笔专员无工具** — 只根据材料生成最终答复。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>职责分离，执笔阶段不易再编造工具结果。</li>
+      <li>可复用已有 ReAct / Structured 能力。</li>
+      <li>编排决策可观测（`next` 枚举）。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>多轮 LLM，成本与延迟高于单 Agent。</li>
+      <li>编排错误会导致错派专员。</li>
+      <li>专员间上下文传递需精心设计。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 先检索/算数再成文的报告类任务。
+- 需要「调研」与「写作」权限隔离的流程。
+
+## 源码落点
+
+<SourceMap items={[
+  { node: '多 Agent', path: 'java/.../samples/multiagent/', note: 'Orchestrator / researcher / writer。' },
+]} />
+
+## 刻意不做
+
+- 不上分布式 Agent 总线  
+- 不把多 Agent 等同于多 Key  
+
+源码：[ai-example](https://github.com/Feike1993/ai-example)。

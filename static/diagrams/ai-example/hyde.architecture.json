@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example HyDE 检索",
+    "locale": "zh-CN",
+    "viewBox": [980, 520],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "hyp", "label": "假想", "focus": ["query", "chat", "hyp"], "note": "Chat 写假想段落。" },
+      { "id": "ret", "label": "检索", "focus": ["hyp", "store", "hits"], "note": "Embedding 假想文检索。" },
+      { "id": "ans", "label": "生成", "focus": ["query", "hits", "gen"], "note": "原问 + 真实 sources。" }
+    ]
+  },
+  "components": [
+    { "id": "query", "type": "frontend", "label": "用户短问", "sublabel": "表述鸿沟", "pos": [40, 220], "size": [120, 56] },
+    { "id": "chat", "type": "cloud", "label": "Chat", "sublabel": "写假想段", "pos": [230, 80], "size": [120, 56] },
+    { "id": "hyp", "type": "backend", "label": "假想段落", "sublabel": "仅检索用", "pos": [230, 220], "size": [120, 56], "tag": "hyde" },
+    { "id": "store", "type": "database", "label": "pgvector", "sublabel": "真实语料", "pos": [450, 220], "size": [130, 56] },
+    { "id": "hits", "type": "backend", "label": "真实 chunks", "sublabel": "sources", "pos": [660, 220], "size": [130, 56] },
+    { "id": "gen", "type": "cloud", "label": "Chat 终答", "sublabel": "原问+上下文", "pos": [860, 220], "size": [120, 56] }
+  ],
+  "connections": [
+    { "id": "q-c", "from": "query", "to": "chat", "label": "写假想", "fromSide": "top", "toSide": "left", "via": [[100, 108], [230, 108]] },
+    { "id": "c-h", "from": "chat", "to": "hyp", "label": "段落", "fromSide": "bottom", "toSide": "top", "labelDy": 24 },
+    { "id": "h-s", "from": "hyp", "to": "store", "label": "Embedding检索", "variant": "emphasis" },
+    { "id": "s-h", "from": "store", "to": "hits", "label": "命中", "variant": "emphasis" },
+    { "id": "h-g", "from": "hits", "to": "gen", "label": "真实上下文", "variant": "emphasis" },
+    { "id": "q-g", "from": "query", "to": "gen", "label": "原问题", "variant": "dashed", "fromSide": "bottom", "toSide": "bottom", "via": [[100, 400], [920, 400], [920, 276]], "labelAt": [500, 388] }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "鸿沟", "items": ["短问≠文档风格", "假想拉近检索空间"] },
+    { "dot": "rose", "title": "不污染", "items": ["假想文不进 sources", "答案 grounded 真实块"] },
+    { "dot": "orange", "title": "代价", "items": ["多一次 Chat", "假想跑偏会带偏"] }
+  ]
+}

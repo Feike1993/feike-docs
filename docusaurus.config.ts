@@ -89,6 +89,12 @@ const config: Config = {
         },
         {
           type: 'docSidebar',
+          sidebarId: 'aiExampleSidebar',
+          position: 'left',
+          label: 'ai-example',
+        },
+        {
+          type: 'docSidebar',
           sidebarId: 'techStackSidebar',
           position: 'left',
           label: '技术栈',
@@ -119,6 +125,10 @@ const config: Config = {
             {
               label: 'AI',
               to: '/docs/ai/claude-code',
+            },
+            {
+              label: 'ai-example',
+              to: '/docs/ai-example/overview',
             },
             {
               label: '技术栈',

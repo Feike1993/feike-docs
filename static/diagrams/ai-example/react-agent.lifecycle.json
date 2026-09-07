@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "ai-example ReAct 循环",
+    "locale": "zh-CN",
+    "output": "react-agent.html",
+    "viewBox": [980, 660],
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "main-loop",
+        "label": "主循环",
+        "focus": ["perceive", "reason", "act", "observe", "done"],
+        "note": "Perceive → Reason → Act → Observe → Final。"
+      },
+      {
+        "id": "budget",
+        "label": "步数预算",
+        "focus": ["act", "cap", "done"],
+        "note": "maxSteps 触顶强制收束。"
+      },
+      {
+        "id": "retry-loop",
+        "label": "观察回环",
+        "focus": ["observe", "retry", "reason"],
+        "note": "tool 结果回填后再 Reason。"
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "main", "label": "ReAct 主路径" },
+    { "id": "waiting", "label": "回环等待" },
+    { "id": "exceptions", "label": "可恢复" },
+    { "id": "terminal", "label": "终态" }
+  ],
+  "states": [
+    { "id": "perceive", "type": "start", "label": "Perceive", "sublabel": "读输入", "lane": "main", "col": 0, "step": "01", "tag": "entry" },
+    { "id": "reason", "type": "active", "label": "Reason", "sublabel": "Chat 决策", "lane": "main", "col": 1, "step": "02", "tag": "model" },
+    { "id": "act", "type": "active", "label": "Act", "sublabel": "执行 tool", "lane": "main", "col": 2, "step": "03", "tag": "host" },
+    { "id": "observe", "type": "decision", "label": "Observe", "sublabel": "结果回填", "lane": "main", "col": 3, "step": "04", "tag": "loop" },
+    { "id": "done", "type": "success", "label": "Final", "sublabel": "终答", "lane": "main", "col": 4, "step": "05", "tag": "done" },
+    { "id": "retry", "type": "waiting", "label": "再决策", "sublabel": "回 Reason", "lane": "waiting", "col": 0, "tag": "loop" },
+    { "id": "cap", "type": "failure", "label": "maxSteps", "sublabel": "触顶", "lane": "exceptions", "col": 0, "yOffset": 78, "tag": "budget" }
+  ],
+  "transitions": [
+    { "id": "observe-retry", "from": "observe", "to": "retry", "variant": "default", "route": "drop" },
+    { "id": "act-cap", "from": "act", "to": "cap", "variant": "security", "fromSide": "left", "toSide": "left", "via": [[320, 157], [320, 385]] },
+    { "id": "cap-retry", "from": "cap", "to": "act", "variant": "emphasis", "fromSide": "left", "toSide": "top", "via": [[20, 385], [20, 80], [402, 80]] }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "显式循环",
+      "items": [
+        "Agent ≠ 一次 Chat 调用",
+        "主轨：Perceive→Reason→Act→Observe→Final",
+        "终答与 tool_call 分流"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "回环与预算",
+      "items": [
+        "Observe 可回到再决策",
+        "maxSteps 可恢复收束",
+        "错误可中止"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "对照",
+      "items": [
+        "对照 ChatClient.tools",
+        "对照 LangGraph",
+        "样例手写便于教学"
+      ]
+    }
+  ]
+}

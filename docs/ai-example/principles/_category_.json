@@ -1,0 +1,9 @@
+{
+  "label": "底层原理",
+  "position": 2,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "description": "ai-example 核心原理页：Archify 架构图 + 源码落点 + 设计取舍。"
+  }
+}

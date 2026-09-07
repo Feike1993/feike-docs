@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "ai-example Agent 逐步 SSE",
+    "locale": "zh-CN",
+    "output": "agent-tool-sse.html",
+    "viewBox": [880, 640],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "loop", "label": "循环中推送", "focus": ["ui", "api", "agent"], "note": "tool_call/result 边跑边推。" },
+      { "id": "final", "label": "终答", "focus": ["agent", "api", "ui"], "note": "message + done。" }
+    ]
+  },
+  "participants": [
+    { "id": "ui", "type": "frontend", "label": "Playground", "sublabel": "EventSource" },
+    { "id": "api", "type": "backend", "label": "Agent API", "sublabel": "SSE" },
+    { "id": "agent", "type": "backend", "label": "ReAct Loop", "sublabel": "Progress" },
+    { "id": "tools", "type": "backend", "label": "Tools", "sublabel": "@Tool" }
+  ],
+  "segments": [
+    { "from": 140, "to": 360, "label": "多跳工具" },
+    { "from": 380, "to": 560, "label": "终答" }
+  ],
+  "messages": [
+    { "id": "sub", "from": "ui", "to": "api", "y": 170, "label": "订阅 stream", "variant": "emphasis" },
+    { "id": "run", "from": "api", "to": "agent", "y": 215, "label": "启动 Loop", "variant": "emphasis" },
+    { "id": "tc", "from": "agent", "to": "api", "y": 270, "label": "event:tool_call", "variant": "default" },
+    { "id": "push1", "from": "api", "to": "ui", "y": 305, "label": "Timeline+", "variant": "return" },
+    { "id": "act", "from": "agent", "to": "tools", "y": 350, "label": "执行", "variant": "emphasis" },
+    { "id": "tr", "from": "tools", "to": "agent", "y": 385, "label": "result", "variant": "return" },
+    { "id": "tr2", "from": "agent", "to": "api", "y": 430, "label": "event:tool_result", "variant": "default" },
+    { "id": "msg", "from": "agent", "to": "api", "y": 490, "label": "message 终答", "variant": "emphasis" },
+    { "id": "done", "from": "api", "to": "ui", "y": 535, "label": "done", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "api", "from": 165, "to": 545, "type": "backend" },
+    { "participant": "agent", "from": 210, "to": 500, "type": "backend" },
+    { "participant": "tools", "from": 345, "to": 395, "type": "backend" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "实时", "items": ["边跑边看轨迹", "多跳完整"] },
+    { "dot": "orange", "title": "协议", "items": ["需约定事件名", "兼容聚合 steps"] },
+    { "dot": "cyan", "title": "场景", "items": ["演示选工具", "对照黑盒托管"] }
+  ]
+}

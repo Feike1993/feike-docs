@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example Hybrid RAG + RRF",
+    "locale": "zh-CN",
+    "viewBox": [980, 520],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "dual", "label": "双路", "focus": ["query", "vector", "keyword", "store"], "note": "向量与关键词双召回。" },
+      { "id": "rrf", "label": "融合", "focus": ["vector", "keyword", "rrf"], "note": "RRF 按排名融合。" },
+      { "id": "gen", "label": "生成", "focus": ["rrf", "chat"], "note": "融合片段接地生成。" }
+    ]
+  },
+  "components": [
+    { "id": "query", "type": "frontend", "label": "用户问题", "sublabel": "online", "pos": [40, 220], "size": [120, 56] },
+    { "id": "store", "type": "database", "label": "语料库", "sublabel": "向量+全文", "pos": [240, 80], "size": [130, 56] },
+    { "id": "vector", "type": "backend", "label": "向量路", "sublabel": "pgvector", "pos": [240, 220], "size": [130, 56], "tag": "sem" },
+    { "id": "keyword", "type": "backend", "label": "关键词路", "sublabel": "PG FTS", "pos": [240, 360], "size": [130, 56], "tag": "kw" },
+    { "id": "rrf", "type": "backend", "label": "RRF", "sublabel": "k=60", "pos": [480, 220], "size": [120, 56], "tag": "fuse" },
+    { "id": "chat", "type": "cloud", "label": "Chat", "sublabel": "接地生成", "pos": [700, 220], "size": [120, 56] }
+  ],
+  "connections": [
+    { "id": "q-v", "from": "query", "to": "vector", "label": "查询", "variant": "emphasis" },
+    { "id": "q-k", "from": "query", "to": "keyword", "label": "查询", "fromSide": "bottom", "toSide": "left", "via": [[100, 388], [240, 388]] },
+    { "id": "s-v", "from": "store", "to": "vector", "label": "读库", "fromSide": "bottom", "toSide": "top", "labelDy": 24 },
+    { "id": "v-r", "from": "vector", "to": "rrf", "label": "排名", "variant": "emphasis" },
+    { "id": "k-r", "from": "keyword", "to": "rrf", "label": "排名", "fromSide": "right", "toSide": "bottom", "via": [[420, 388], [540, 388], [540, 276]] },
+    { "id": "r-c", "from": "rrf", "to": "chat", "label": "生成", "variant": "emphasis" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "双路互补", "items": ["向量抓语义", "关键词抓专名", "同一语料库两路读"] },
+    { "dot": "orange", "title": "RRF", "items": ["排名倒数求和", "无需分数量纲对齐"] },
+    { "dot": "cyan", "title": "对照", "items": ["默认可纯向量", "compare 并排结果"] }
+  ]
+}

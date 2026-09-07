@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example Orchestrator–Subagent",
+    "locale": "zh-CN",
+    "viewBox": [960, 480],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "orch", "label": "编排", "focus": ["user", "orch"], "note": "结构化 next。" },
+      { "id": "research", "label": "调研", "focus": ["orch", "researcher", "tools"], "note": "调研挂工具。" },
+      { "id": "write", "label": "执笔", "focus": ["orch", "writer", "answer"], "note": "执笔无工具。" }
+    ]
+  },
+  "components": [
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "任务", "pos": [40, 200], "size": [110, 56] },
+    { "id": "orch", "type": "backend", "label": "Orchestrator", "sublabel": "next 枚举", "pos": [220, 200], "size": [140, 56], "tag": "plan" },
+    { "id": "researcher", "type": "backend", "label": "调研专员", "sublabel": "ReAct", "pos": [450, 80], "size": [130, 56], "tag": "tools" },
+    { "id": "writer", "type": "backend", "label": "执笔专员", "sublabel": "无工具", "pos": [450, 320], "size": [130, 56], "tag": "write" },
+    { "id": "tools", "type": "messagebus", "label": "DemoTools", "sublabel": "@Tool", "pos": [680, 80], "size": [120, 56] },
+    { "id": "answer", "type": "frontend", "label": "终答", "sublabel": "汇总", "pos": [680, 320], "size": [120, 56] }
+  ],
+  "connections": [
+    { "id": "u-o", "from": "user", "to": "orch", "label": "任务", "variant": "emphasis" },
+    { "id": "o-r", "from": "orch", "to": "researcher", "label": "researcher", "fromSide": "top", "toSide": "left", "via": [[290, 108], [450, 108]] },
+    { "id": "o-w", "from": "orch", "to": "writer", "label": "writer", "fromSide": "bottom", "toSide": "left", "via": [[290, 348], [450, 348]] },
+    { "id": "r-t", "from": "researcher", "to": "tools", "label": "调工具", "variant": "emphasis" },
+    { "id": "w-a", "from": "writer", "to": "answer", "label": "成文", "variant": "emphasis" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "职责分离", "items": ["调研带工具", "执笔无工具", "材料回写后再执笔"] },
+    { "dot": "orange", "title": "代价", "items": ["多轮 LLM", "编排可能错派"] },
+    { "dot": "cyan", "title": "可观测", "items": ["agents[].steps", "next 可审计"] }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "label": "可观测",
+  "position": 12,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Agent 逐步 SSE、TokenUsage 多跳累计。"
+  }
+}

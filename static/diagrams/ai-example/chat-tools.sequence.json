@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "ai-example Tool Calling 往返",
+    "locale": "zh-CN",
+    "output": "chat-tools.html",
+    "viewBox": [900, 700],
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "intent",
+        "label": "发出意图",
+        "focus": ["user", "api", "llm"],
+        "note": "用户请求进入 API，模型返回 tool_calls 而非最终答案。"
+      },
+      {
+        "id": "host-exec",
+        "label": "宿主执行",
+        "focus": ["api", "tools"],
+        "note": "Host 按 schema 调本地 @Tool，模型不直接碰副作用。"
+      },
+      {
+        "id": "final",
+        "label": "终答",
+        "focus": ["tools", "api", "llm", "user"],
+        "note": "tool 结果回填消息后再次调模型，得到自然语言答案。"
+      }
+    ]
+  },
+  "participants": [
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "Playground" },
+    { "id": "api", "type": "backend", "label": "API", "sublabel": "ToolSample" },
+    { "id": "llm", "type": "cloud", "label": "Chat 模型", "sublabel": "OpenAI 兼容" },
+    { "id": "tools", "type": "backend", "label": "Tool Host", "sublabel": "@Tool 方法" }
+  ],
+  "segments": [
+    { "from": 140, "to": 280, "label": "请求" },
+    { "from": 300, "to": 460, "label": "工具调用" },
+    { "from": 480, "to": 640, "label": "终答" }
+  ],
+  "messages": [
+    { "id": "ask", "from": "user", "to": "api", "y": 175, "label": "提问", "variant": "emphasis" },
+    { "id": "prompt", "from": "api", "to": "llm", "y": 220, "label": "messages+tools", "variant": "emphasis" },
+    { "id": "tool-calls", "from": "llm", "to": "api", "y": 265, "label": "tool_calls JSON", "variant": "return" },
+    { "id": "invoke", "from": "api", "to": "tools", "y": 340, "label": "执行 @Tool", "variant": "emphasis" },
+    { "id": "result", "from": "tools", "to": "api", "y": 385, "label": "tool result", "variant": "return" },
+    { "id": "continue", "from": "api", "to": "llm", "y": 520, "label": "追加 tool 消息", "variant": "emphasis" },
+    { "id": "answer", "from": "llm", "to": "api", "y": 565, "label": "最终文本", "variant": "return" },
+    { "id": "reply", "from": "api", "to": "user", "y": 610, "label": "返回答案", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "api", "from": 170, "to": 620, "type": "backend" },
+    { "participant": "llm", "from": 215, "to": 275, "type": "cloud" },
+    { "participant": "tools", "from": 335, "to": 395, "type": "backend" },
+    { "participant": "llm", "from": 515, "to": 575, "type": "cloud" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "协议本质",
+      "items": [
+        "模型只产出结构化意图，不执行副作用",
+        "Host 按 JSON Schema 调本地方法",
+        "tool 结果必须回填消息列表再继续"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "源码落点",
+      "items": [
+        "ToolSampleController / Service",
+        "Spring AI @Tool 挂载",
+        "与 Chat 样例共用 Provider 注册表"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "刻意不做",
+      "items": [
+        "不把工具执行权交给模型进程",
+        "不在首轮强制终答",
+        "不混用未声明的 tool schema"
+      ]
+    }
+  ]
+}

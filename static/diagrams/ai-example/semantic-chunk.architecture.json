@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example 语义分块对照",
+    "locale": "zh-CN",
+    "viewBox": [980, 560],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "token", "label": "Token 切", "focus": ["doc", "token", "c1"], "note": "固定长度。" },
+      { "id": "sem", "label": "语义切", "focus": ["doc", "sem", "c2"], "note": "按标题/空行。" },
+      { "id": "query", "label": "查询", "focus": ["api", "c1", "c2", "llm"], "note": "双 corpus 对照。" }
+    ]
+  },
+  "components": [
+    { "id": "doc", "type": "frontend", "label": "Markdown", "sublabel": "文档语料", "pos": [40, 240], "size": [120, 56] },
+    { "id": "token", "type": "backend", "label": "Token 切", "sublabel": "固定长度", "pos": [240, 120], "size": [130, 56], "tag": "demo" },
+    { "id": "sem", "type": "backend", "label": "语义切", "sublabel": "H1–H3/空行", "pos": [240, 360], "size": [130, 56], "tag": "sem" },
+    { "id": "c1", "type": "database", "label": "corpus A", "sublabel": "token", "pos": [460, 120], "size": [130, 56] },
+    { "id": "c2", "type": "database", "label": "corpus B", "sublabel": "semantic", "pos": [460, 360], "size": [130, 56] },
+    { "id": "api", "type": "backend", "label": "查询 API", "sublabel": "选 corpus", "pos": [680, 240], "size": [120, 56] },
+    { "id": "llm", "type": "cloud", "label": "Chat", "sublabel": "生成", "pos": [860, 240], "size": [110, 56] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Token 路径", "wraps": ["token", "c1"] },
+    { "kind": "region", "label": "语义路径", "wraps": ["sem", "c2"] }
+  ],
+  "connections": [
+    { "id": "d-t", "from": "doc", "to": "token", "label": "切分", "fromSide": "top", "toSide": "left", "via": [[100, 148], [240, 148]] },
+    { "id": "d-s", "from": "doc", "to": "sem", "label": "切分", "fromSide": "bottom", "toSide": "left", "via": [[100, 388], [240, 388]] },
+    { "id": "t-c", "from": "token", "to": "c1", "label": "入库", "variant": "emphasis" },
+    { "id": "s-c", "from": "sem", "to": "c2", "label": "入库", "variant": "emphasis" },
+    { "id": "c1-a", "from": "c1", "to": "api", "label": "召回", "fromSide": "right", "toSide": "top", "via": [[620, 148], [740, 148], [740, 240]] },
+    { "id": "c2-a", "from": "c2", "to": "api", "label": "召回", "fromSide": "right", "toSide": "bottom", "via": [[620, 388], [740, 388], [740, 296]] },
+    { "id": "a-l", "from": "api", "to": "llm", "label": "生成", "variant": "emphasis" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Token 切", "items": ["实现简单", "易切断章节"] },
+    { "dot": "emerald", "title": "语义切", "items": ["贴标题边界", "无 LLM、可复现"] },
+    { "dot": "orange", "title": "正交", "items": ["可叠加 Hybrid/HyDE"] }
+  ]
+}

@@ -1,0 +1,68 @@
+---
+sidebar_position: 2
+title: TokenUsage 累加
+description: ReAct 多跳 usage 合计；Archify 对照源码
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# TokenUsage 累加
+
+对应 sample **21**。单次 TokenUsage 无法覆盖 ReAct 多跳，需要合计。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="单次 TokenUsage 无法覆盖 ReAct 多跳。"
+  rightTitle="目的"
+  right="展示合计 prompt/completion/total 与调用次数。"
+/>
+
+## 架构图
+
+下图示意上述解法，后续步骤按图展开。
+
+<DiagramFrame title="Usage 累加" tool="archify" description="多轮 extract 后 sum，推送到 Trace/SSE。">
+  <ArchifyEmbed src="/diagrams/ai-example/token-usage.html" title="TokenUsage" height={500} />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **每轮 extract** — `TokenUsageExtractor.from(response)`。  
+2. **sum 累加** — `TokenUsageExtractor.sum`。  
+3. **推送合计** — Trace 或 `event:usage`。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>同步流式一致；调用次数可观测。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>流式终答若无 metadata，completion 可能不全。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 粗算一次 Agent 任务成本。
+
+## 源码落点
+
+<SourceMap items={[
+  { node: '累加器', path: 'java/.../core/TokenUsageExtractor.java', note: 'from / sum。' },
+  { node: 'Agent 路径', path: 'java/.../samples/agent/', note: 'usageAcc / usageCalls。' },
+]} />
+
+## 刻意不做
+
+- 网关未返回时不编造 usage  
+
+源码：[ai-example](https://github.com/Feike1993/ai-example)。

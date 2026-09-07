@@ -1,0 +1,75 @@
+---
+sidebar_position: 1
+title: Hybrid RAG 与 RRF
+description: Hybrid 检索底层逻辑：双路召回与 RRF；Archify 对照源码
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# Hybrid RAG 与 RRF
+
+对应 sample **09**。在 [基础 RAG](../rag-pipeline) 之上增加关键词路，用 RRF 融合。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="纯向量对专有名词、编号、短关键词常漏召；纯关键词又缺语义近邻。"
+  rightTitle="目的"
+  right="向量路 + 关键词路双召回，用 RRF 按排名融合，提升稳健命中。"
+/>
+
+## 架构图
+
+下图示意上述解法，后续步骤按图展开。
+
+<DiagramFrame title="Hybrid + RRF" tool="archify" description="双路召回后按排名融合，再接地生成。">
+  <ArchifyEmbed src="/diagrams/ai-example/hybrid-rag.html" title="Hybrid RAG" height={560} />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **双路召回** — 向量路用 pgvector 相似度；关键词路用 PG 全文 GIN 索引。两路各自产出 ranked list。  
+2. **RRF 融合** — 不手工加权两路分数，而是按排名倒数求和（默认 k=60）。  
+3. **与基础 RAG 的关系** — ingest / Embedding / 表结构不变；ingest 后额外建 content 全文索引。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>专名与语义互补，召回更稳。</li>
+      <li>RRF 不依赖两路分数同量纲。</li>
+      <li>ingest/表结构可与基础 RAG 共用。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>多一路检索与融合，实现与调参更复杂。</li>
+      <li>需维护全文索引。</li>
+      <li>融合 topK、字段权重仍要按语料试。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 文档含 API 名、工单号、产品代号。
+- 既有口语问法又有精确关键词的知识库。
+
+## 源码落点
+
+<SourceMap items={[
+  { node: 'Hybrid 检索', path: 'java/.../rag/RagSampleService.java', note: 'hybridRetrieve；retrievalMode。' },
+  { node: 'RRF', path: 'java/.../rag/RrfFusion.java', note: '排名融合。' },
+  { node: '关键词路', path: 'java/.../rag/RagKeywordRetriever.java', note: 'PG 全文。' },
+]} />
+
+## 刻意不做
+
+- 不默认替换纯向量路径（需显式 `hybrid`）  
+- 不上复杂学习排序，只用 RRF  
+
+源码：[ai-example](https://github.com/Feike1993/ai-example)。

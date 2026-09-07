@@ -1,0 +1,73 @@
+---
+sidebar_position: 2
+title: HyDE
+description: 假想文档 Embedding 检索底层逻辑；Archify 对照源码
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# HyDE
+
+对应 sample **14**。Hypothetical Document Embeddings：用假想段落的向量去检索真实文档。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="用户短问句与知识库段落表述鸿沟大，直接 Embedding 问句常召不回相关文档。"
+  rightTitle="目的"
+  right="先让模型写一段假想答案段落再 Embedding 检索，用更接近文档风格的向量去召回。"
+/>
+
+## 架构图
+
+下图示意上述解法，后续步骤按图展开。
+
+<DiagramFrame title="HyDE 检索" tool="archify" description="假想段落仅用于检索；终答 grounded 真实 chunk。">
+  <ArchifyEmbed src="/diagrams/ai-example/hyde.html" title="HyDE" height={560} />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **生成假想段落** — Chat 写百科风格段落；失败时回退原问题检索。  
+2. **Embedding 假想段落检索** — `similaritySearch` 的 query 是假想正文，不是用户原问。  
+3. **生成仍用原问题 + 真实 sources** — 假想段落可预览，绝不写入 sources。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>改善短问句、口语问法的召回。</li>
+      <li>可与原问句向量融合（可选）。</li>
+      <li>假想文只用于检索，不污染 sources。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>多一次 LLM，延迟与费用上升。</li>
+      <li>假想文跑偏会带偏检索。</li>
+      <li>不替代好的分块与语料质量。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 问句短、文档长、措辞差异大的知识库。
+- 与 rewrite / none 对照评估查询扩展收益。
+
+## 源码落点
+
+<SourceMap items={[
+  { node: 'HyDE 检索', path: 'java/.../rag/RagSampleService.java', note: 'queryExpansion=hyde；假想段字段。' },
+]} />
+
+## 刻意不做
+
+- 不把假想文当 citation  
+- 不替代语料与分块质量  
+
+源码：[ai-example](https://github.com/Feike1993/ai-example)。

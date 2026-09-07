@@ -1,0 +1,68 @@
+---
+sidebar_position: 1
+title: Agent 逐步 SSE
+description: tool_call / tool_result 实时推送；Archify 时序对照源码
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# Agent 逐步 SSE
+
+对应 sample **20**。把 ReAct 每一步工具调用暴露为 SSE，便于对照与排障。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="工具轮结束后才一次性吐出 `steps`，难边跑边看。"
+  rightTitle="目的"
+  right="把 ReAct 每一步工具调用暴露为 SSE，便于对照与排障。"
+/>
+
+## 架构图
+
+下图示意上述解法，后续步骤按图展开。
+
+<DiagramFrame title="逐步 SSE" tool="archify" description="循环中推送 tool 事件，最后 message + done。">
+  <ArchifyEmbed src="/diagrams/ai-example/agent-tool-sse.html" title="Agent SSE" height={680} />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **订阅 stream** — EventSource 听 `tool_call` / `tool_result`。  
+2. **边收边画** — Timeline 增量更新。  
+3. **终答 + done** — `message` 与 `done.reachedMaxSteps`。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>实时 Timeline；多跳完整。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>事件协议需前后端约定。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 演示 Agent 如何选工具。
+- 对照框架托管黑盒。
+
+## 源码落点
+
+<SourceMap items={[
+  { node: 'Progress / SSE', path: 'java/.../samples/agent/', note: 'onToolCall / onToolResult；Flux SSE。' },
+]} />
+
+## 刻意不做
+
+- 不另起一套与同步不一致的工具路径  
+
+源码：[ai-example](https://github.com/Feike1993/ai-example)。

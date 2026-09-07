@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example TokenUsage 累加",
+    "locale": "zh-CN",
+    "viewBox": [900, 420],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "calls", "label": "多轮", "focus": ["loop", "call1", "call2"], "note": "每轮 call。" },
+      { "id": "sum", "label": "合计", "focus": ["acc", "out"], "note": "sum 后推送。" }
+    ]
+  },
+  "components": [
+    { "id": "loop", "type": "backend", "label": "ReAct Loop", "sublabel": "多跳", "pos": [40, 170], "size": [130, 56] },
+    { "id": "call1", "type": "cloud", "label": "Call #1", "sublabel": "usage", "pos": [260, 60], "size": [120, 56] },
+    { "id": "call2", "type": "cloud", "label": "Call #N", "sublabel": "usage", "pos": [260, 280], "size": [120, 56] },
+    { "id": "acc", "type": "backend", "label": "sum()", "sublabel": "TokenUsage", "pos": [480, 170], "size": [130, 56], "tag": "acc" },
+    { "id": "out", "type": "frontend", "label": "Trace/SSE", "sublabel": "usage+calls", "pos": [700, 170], "size": [130, 56] }
+  ],
+  "connections": [
+    { "id": "l1", "from": "loop", "to": "call1", "label": "extract", "variant": "default", "fromSide": "top", "toSide": "left", "via": [[105, 88], [260, 88]] },
+    { "id": "l2", "from": "loop", "to": "call2", "label": "extract", "fromSide": "bottom", "toSide": "left", "via": [[105, 308], [260, 308]] },
+    { "id": "a1", "from": "call1", "to": "acc", "label": "+", "fromSide": "right", "toSide": "top", "via": [[420, 88], [545, 88], [545, 170]] },
+    { "id": "a2", "from": "call2", "to": "acc", "label": "+", "fromSide": "right", "toSide": "bottom", "via": [[420, 308], [545, 308], [545, 226]] },
+    { "id": "ao", "from": "acc", "to": "out", "label": "推送合计", "variant": "emphasis" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "计费直觉", "items": ["多跳合计", "同步流式一致"] },
+    { "dot": "orange", "title": "注意", "items": ["无 usage 则为 null"] },
+    { "dot": "cyan", "title": "场景", "items": ["粗算 Agent 成本"] }
+  ]
+}

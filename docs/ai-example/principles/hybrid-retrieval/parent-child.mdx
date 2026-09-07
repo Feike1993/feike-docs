@@ -1,0 +1,75 @@
+---
+sidebar_position: 4
+title: 父子文档
+description: 子块检索、父块展开；Archify 对照源码
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# 父子文档
+
+对应 sample **16**。子块负责召回，命中后展开父块全文进生成。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="检索偏好短块（准），生成偏好长上下文（全）；单一粒度很难两头兼顾。"
+  rightTitle="目的"
+  right="子块 Embedding 负责召回，命中后展开父块全文进 LLM，sources 仍展示子块便于核对。"
+/>
+
+## 架构图
+
+下图示意上述解法，后续步骤按图展开。
+
+<DiagramFrame title="父子管线" tool="archify" description="只索引子块；检索后展开父全文。">
+  <ArchifyEmbed src="/diagrams/ai-example/parent-child.html" title="父子文档" height={560} />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **语义切父块** — 复用语义分块得到结构完整父段。  
+2. **硬切子块** — 对每个父段按 `childSize` 硬切。  
+3. **只入库子块** — metadata 含 `parentId`、`parentText`；父块本身不入 VectorStore。  
+4. **命中后 expand** — 按 `parentId` 去重，用父全文拼 LLM 上下文。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>召回粒度与生成粒度解耦。</li>
+      <li>父文进 metadata，演示链路简单、无需另表。</li>
+      <li>可与 token/semantic 三路对照。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>每子块复制 `parentText`，存储膨胀。</li>
+      <li>父切/子切参数都要调，复杂度高于单级分块。</li>
+      <li>`expand` 关闭时生成上下文又变回短块。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 章节较长、需要精召回又要完整段落生成的文档 QA。
+- 对比「只检索子块」与「展开父块」对答案质量的影响。
+
+## 源码落点
+
+<SourceMap items={[
+  { node: '建索引 / 展开', path: 'java/.../rag/RagSampleService.java', note: 'buildParentChildChunks / expandParents。' },
+  { node: '语义父切', path: 'java/.../rag/SemanticMarkdownSplitter.java', note: '父块来源。' },
+]} />
+
+## 刻意不做
+
+- 不为父块另建向量表  
+- 不默认替换单级分块路径  
+
+源码：[ai-example](https://github.com/Feike1993/ai-example)。

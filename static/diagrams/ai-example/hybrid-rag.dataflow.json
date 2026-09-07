@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "ai-example Hybrid RAG + RRF",
+    "locale": "zh-CN",
+    "output": "hybrid-rag.html",
+    "viewBox": [1068, 720],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "dual", "label": "双路召回", "focus": ["query", "vector", "keyword", "store"], "note": "向量与关键词各自产出 ranked list。" },
+      { "id": "rrf", "label": "RRF 融合", "focus": ["vector", "keyword", "rrf"], "note": "按排名倒数求和，不依赖分数同量纲。" },
+      { "id": "gen", "label": "接地生成", "focus": ["rrf", "prompt", "chat"], "note": "融合后的片段再拼上下文生成。" }
+    ]
+  },
+  "stages": [
+    { "label": "查询" },
+    { "label": "双路" },
+    { "label": "融合" },
+    { "label": "生成" },
+    { "label": "回答" }
+  ],
+  "nodes": [
+    { "id": "query", "type": "frontend", "label": "用户问题", "sublabel": "API / UI", "stage": 0, "row": 2, "tag": "online" },
+    { "id": "store", "type": "database", "label": "pgvector", "sublabel": "+ 全文索引", "stage": 1, "row": 0, "tag": "corpus" },
+    { "id": "vector", "type": "backend", "label": "向量路", "sublabel": "相似度", "stage": 1, "row": 2, "tag": "topK" },
+    { "id": "keyword", "type": "backend", "label": "关键词路", "sublabel": "PG FTS", "stage": 1, "row": 4, "tag": "tsquery" },
+    { "id": "rrf", "type": "backend", "label": "RRF", "sublabel": "k=60", "stage": 2, "row": 2, "tag": "fusion" },
+    { "id": "prompt", "type": "backend", "label": "接地 Prompt", "sublabel": "拼上下文", "stage": 3, "row": 2, "tag": "ground" },
+    { "id": "chat", "type": "cloud", "label": "Chat", "sublabel": "生成", "stage": 4, "row": 2, "tag": "answer" }
+  ],
+  "flows": [
+    { "id": "q-v", "from": "query", "to": "vector", "label": "查询", "variant": "emphasis", "route": "straight" },
+    { "id": "q-k", "from": "query", "to": "keyword", "label": "查询", "variant": "default", "route": "straight", "labelDy": 24 },
+    { "id": "s-v", "from": "store", "to": "vector", "label": "向量", "variant": "emphasis", "route": "vertical-channel" },
+    { "id": "s-k", "from": "store", "to": "keyword", "label": "全文", "variant": "default", "route": "vertical-channel" },
+    { "id": "v-r", "from": "vector", "to": "rrf", "label": "排名", "variant": "emphasis", "route": "straight" },
+    { "id": "k-r", "from": "keyword", "to": "rrf", "label": "排名", "variant": "default", "route": "straight", "labelDy": 24 },
+    { "id": "r-p", "from": "rrf", "to": "prompt", "label": "融合片段", "variant": "emphasis", "route": "straight" },
+    { "id": "p-c", "from": "prompt", "to": "chat", "label": "生成", "variant": "emphasis", "route": "straight" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "双路互补", "items": ["向量抓语义近邻", "关键词抓专名/编号", "ingest 可与基础 RAG 共用"] },
+    { "dot": "orange", "title": "RRF", "items": ["按排名倒数求和", "不手工对齐分数量纲", "默认 k=60"] },
+    { "dot": "cyan", "title": "对照", "items": ["默认仍可走纯向量", "compare 并排两套结果", "sources 带各路排名"] }
+  ]
+}

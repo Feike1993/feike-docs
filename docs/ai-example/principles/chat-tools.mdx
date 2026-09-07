@@ -1,0 +1,125 @@
+---
+sidebar_position: 1
+title: Chat 与 Tool Calling
+description: Tool Calling 底层逻辑：问题、目的、优缺点、场景与流程；Archify 时序图对照源码
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# Chat 与 Tool Calling
+
+对应 sample **01–03**。Chat 只能生成文本；要查天气、算数或写库，需要 Tool Calling——模型产出调用意图，由应用真实执行。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="纯文本回复无法查天气、算数或写库；若让模型「假装执行」，结果不可信且无法审计。"
+  rightTitle="目的"
+  right="让模型只产出调用意图（函数名+参数），由应用真实执行工具并把结果回填，再生成自然语言答案。"
+/>
+
+## 架构图
+
+下图示意上述解法，后续步骤按图展开。
+
+<DiagramFrame
+  title="Tool Calling 往返"
+  tool="archify"
+  description="用户 → API → Chat 模型 → Tool Host；终答前必须回填 tool 消息。">
+
+  <ArchifyEmbed
+    src="/diagrams/ai-example/chat-tools.html"
+    title="ai-example Tool Calling 往返"
+    height={700}
+  />
+
+</DiagramFrame>
+
+## 流程步骤
+
+1. **模型不会真的「调用 API」**  
+   它只生成结构化意图：函数名 + 参数；真正执行发生在你的进程里，由应用代码完成。
+
+2. **工具用 Schema 挂进上下文**  
+   `@Tool` / JSON Schema（名、描述、参数）进入提示；模型据此决定是否调用、调哪个、传什么参数。
+
+3. **一轮典型协议**  
+   用户话 → 模型返回 `tool_calls` → 应用执行 → 把结果作为 tool 消息回填 → 模型再生成自然语言答案（本样例：天气 + 计算器）。
+
+4. **粒度要原子**  
+   单个工具只做一件事；多步编排留给 Agent Loop，避免一个巨型万能工具难调试、难复用。
+
+5. **失败返回错误字符串**  
+   让模型改参数或换策略，而不是把服务进程打崩；错误文本本身成为下一轮上下文。
+
+6. **按请求挂载，不全局一把梭**  
+   结构化抽取等场景不要挂工具，避免消息形态被 tool 调用污染；工具按场景按请求挂载。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>权限与副作用留在应用侧，可审计、可限流。</li>
+      <li>Schema 约束参数形状，比自由文本好解析。</li>
+      <li>失败可返回错误字符串，模型可改参重试。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>单次调用仍是「一步」；多步编排需 Agent Loop。</li>
+      <li>工具描述不佳会导致乱调或漏调。</li>
+      <li>挂载过多工具会占窗口、干扰无关场景。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 查询外部 API、计算器、订单状态等原子动作。
+- 需要模型决策「调不调、调哪个」的交互式助手。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: 'Chat 入口',
+      path: 'java/.../samples/chat/ChatSampleController.java',
+      note: '同步 / SSE；TokenUsage 横切。',
+    },
+    {
+      node: 'Tool 挂载与调用',
+      path: 'java/.../samples/tools/',
+      note: 'ToolSampleController / Service；Spring AI @Tool。',
+    },
+    {
+      node: '结构化输出',
+      path: 'java/.../samples/structured/',
+      note: 'JSON Schema / 类型抽取与修复重试。',
+    },
+    {
+      node: 'Provider 注册',
+      path: 'java/.../core/LlmProviderRegistry.java',
+      note: '多 OpenAI 兼容端共用。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| 模型只出意图 | 安全边界清晰；Host 必须实现执行与回填 |
+| 按请求挂载 tools | schema 与权限随请求变；比全局静态工具表更可控 |
+| Chat ≠ Embedding | 聊天可换提供商；向量维度独立配置 |
+
+## 刻意不做
+
+- 不把工具执行权交给模型进程  
+- 不在首轮强制终答（允许先 `tool_calls`）  
+
+源码：[ai-example](https://github.com/Feike1993/ai-example) · samples chat / tools / structured。

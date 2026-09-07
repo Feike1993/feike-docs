@@ -1,0 +1,226 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "ai-example RAG 离线 / 在线管线",
+    "locale": "zh-CN",
+    "output": "rag-pipeline.html",
+    "viewBox": [1068, 760],
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "offline-ingest",
+        "label": "离线写入",
+        "focus": ["corpus", "splitter", "embedding", "pgvector"],
+        "note": "Markdown 语料分块后 Embedding，写入 pgvector。"
+      },
+      {
+        "id": "online-retrieve",
+        "label": "在线检索",
+        "focus": ["query", "retrieve", "pgvector", "refuse"],
+        "note": "问题向量检索；空结果走拒答，不调用 Chat。"
+      },
+      {
+        "id": "grounded-generate",
+        "label": "接地生成",
+        "focus": ["retrieve", "prompt", "chat"],
+        "note": "仅把检索上下文拼进 Prompt，再由 Chat 模型生成。"
+      }
+    ]
+  },
+  "stages": [
+    { "label": "语料" },
+    { "label": "离线索引" },
+    { "label": "向量库" },
+    { "label": "在线检索" },
+    { "label": "生成" }
+  ],
+  "nodes": [
+    {
+      "id": "corpus",
+      "type": "frontend",
+      "label": "Markdown 语料",
+      "sublabel": "内置 docs",
+      "stage": 0,
+      "row": 1,
+      "tag": "ingest"
+    },
+    {
+      "id": "query",
+      "type": "frontend",
+      "label": "用户问题",
+      "sublabel": "API / UI",
+      "stage": 0,
+      "row": 3,
+      "tag": "online"
+    },
+    {
+      "id": "splitter",
+      "type": "backend",
+      "label": "分块",
+      "sublabel": "Token/语义",
+      "stage": 1,
+      "row": 1,
+      "tag": "Service"
+    },
+    {
+      "id": "embedding",
+      "type": "cloud",
+      "label": "Embedding",
+      "sublabel": "DashScope",
+      "stage": 1,
+      "row": 0,
+      "tag": "1024-d"
+    },
+    {
+      "id": "pgvector",
+      "type": "database",
+      "label": "pgvector",
+      "sublabel": "VectorStore",
+      "stage": 2,
+      "row": 1,
+      "tag": "corpus"
+    },
+    {
+      "id": "retrieve",
+      "type": "backend",
+      "label": "相似度检索",
+      "sublabel": "topK",
+      "stage": 3,
+      "row": 2,
+      "tag": "Search"
+    },
+    {
+      "id": "refuse",
+      "type": "security",
+      "label": "空检索拒答",
+      "sublabel": "跳过 LLM",
+      "stage": 3,
+      "row": 4,
+      "tag": "refuse"
+    },
+    {
+      "id": "prompt",
+      "type": "backend",
+      "label": "接地 Prompt",
+      "sublabel": "只据上下文",
+      "stage": 4,
+      "row": 1,
+      "tag": "ground"
+    },
+    {
+      "id": "chat",
+      "type": "cloud",
+      "label": "Chat 模型",
+      "sublabel": "DeepSeek",
+      "stage": 4,
+      "row": 3,
+      "tag": "≠ Embed"
+    }
+  ],
+  "flows": [
+    {
+      "id": "load-docs",
+      "from": "corpus",
+      "to": "splitter",
+      "label": "读入文档",
+      "classification": "离线",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "chunk-embed",
+      "from": "splitter",
+      "to": "embedding",
+      "label": "chunk 文本",
+      "classification": "离线",
+      "variant": "emphasis",
+      "route": "vertical-channel"
+    },
+    {
+      "id": "embed-store",
+      "from": "embedding",
+      "to": "pgvector",
+      "label": "向量写入",
+      "classification": "离线",
+      "variant": "emphasis",
+      "route": "vertical-channel"
+    },
+    {
+      "id": "ask",
+      "from": "query",
+      "to": "retrieve",
+      "label": "查询",
+      "classification": "在线",
+      "variant": "emphasis",
+      "route": "vertical-channel"
+    },
+    {
+      "id": "vector-hit",
+      "from": "pgvector",
+      "to": "retrieve",
+      "label": "相似片段",
+      "classification": "在线",
+      "variant": "emphasis",
+      "route": "vertical-channel"
+    },
+    {
+      "id": "hit-prompt",
+      "from": "retrieve",
+      "to": "prompt",
+      "label": "检索上下文",
+      "classification": "有结果",
+      "variant": "emphasis",
+      "route": "vertical-channel"
+    },
+    {
+      "id": "empty-path",
+      "from": "retrieve",
+      "to": "refuse",
+      "label": "无命中",
+      "classification": "拒答",
+      "variant": "security",
+      "route": "straight",
+      "labelDy": 24
+    },
+    {
+      "id": "prompt-chat",
+      "from": "prompt",
+      "to": "chat",
+      "label": "生成答案",
+      "classification": "Chat≠Embed",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelDy": 24
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "离线与在线分离",
+      "items": [
+        "写入路径：语料 → 分块 → Embedding → pgvector",
+        "查询路径：问题 → 检索 → Prompt → Chat",
+        "两段管线共享向量库，但不共享模型调用"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "空检索不调用 Chat",
+      "items": [
+        "无相关片段时直接 EMPTY_REFUSAL",
+        "避免模型用参数知识编造答案",
+        "对应 RagSampleService 空检索分支"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Chat 与 Embedding 解耦",
+      "items": [
+        "Embedding 固定 DashScope text-embedding-v3",
+        "Chat 可换 DeepSeek / 通义等 OpenAI 兼容端",
+        "维度与提供商独立配置，避免混用"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "label": "Hybrid 与进阶检索",
+  "position": 10,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Hybrid+RRF、HyDE、语义/父子分块、Citation 等进阶检索原理。"
+  }
+}

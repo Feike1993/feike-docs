@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "ai-example HyDE 检索",
+    "locale": "zh-CN",
+    "output": "hyde.html",
+    "viewBox": [1068, 700],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "hyp", "label": "假想段落", "focus": ["query", "chat", "hyp"], "note": "Chat 写百科风格假想文档。" },
+      { "id": "ret", "label": "检索", "focus": ["hyp", "embed", "store", "hits"], "note": "Embedding 假想文而非短问句。" },
+      { "id": "ans", "label": "生成", "focus": ["query", "hits", "gen"], "note": "原问题 + 真实 sources 再生成。" }
+    ]
+  },
+  "stages": [
+    { "label": "问句" },
+    { "label": "假想" },
+    { "label": "向量" },
+    { "label": "召回" },
+    { "label": "生成" }
+  ],
+  "nodes": [
+    { "id": "query", "type": "frontend", "label": "用户短问", "sublabel": "口语/鸿沟", "stage": 0, "row": 2, "tag": "ask" },
+    { "id": "chat", "type": "cloud", "label": "Chat", "sublabel": "写假想段", "stage": 1, "row": 1, "tag": "LLM" },
+    { "id": "hyp", "type": "backend", "label": "假想段落", "sublabel": "仅检索用", "stage": 1, "row": 3, "tag": "hyde" },
+    { "id": "embed", "type": "cloud", "label": "Embedding", "sublabel": "DashScope", "stage": 2, "row": 2, "tag": "1024-d" },
+    { "id": "store", "type": "database", "label": "pgvector", "sublabel": "真实语料", "stage": 3, "row": 1, "tag": "corpus" },
+    { "id": "hits", "type": "backend", "label": "真实 chunks", "sublabel": "sources", "stage": 3, "row": 3, "tag": "recall" },
+    { "id": "gen", "type": "cloud", "label": "Chat 终答", "sublabel": "原问+上下文", "stage": 4, "row": 2, "tag": "ground" }
+  ],
+  "flows": [
+    { "id": "q-c", "from": "query", "to": "chat", "label": "写假想", "variant": "emphasis", "route": "straight" },
+    { "id": "c-h", "from": "chat", "to": "hyp", "label": "段落", "variant": "emphasis", "route": "vertical-channel" },
+    { "id": "h-e", "from": "hyp", "to": "embed", "label": "向量化", "variant": "emphasis", "route": "straight" },
+    { "id": "e-s", "from": "embed", "to": "store", "label": "检索", "variant": "emphasis", "route": "vertical-channel" },
+    { "id": "s-h", "from": "store", "to": "hits", "label": "命中", "variant": "emphasis", "route": "vertical-channel" },
+    { "id": "q-g", "from": "query", "to": "gen", "label": "原问题", "variant": "dashed", "fromSide": "bottom", "toSide": "left", "via": [[120, 520], [900, 520], [900, 320]], "labelDy": 24 },
+    { "id": "h-g", "from": "hits", "to": "gen", "label": "真实上下文", "variant": "emphasis", "route": "straight" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "鸿沟", "items": ["短问句≠文档段落风格", "假想文拉近检索空间", "失败可回退原问检索"] },
+    { "dot": "rose", "title": "不污染 sources", "items": ["假想文只用于检索", "答案 grounded 真实 chunk", "可预览 hypotheticalDocument"] },
+    { "dot": "orange", "title": "代价", "items": ["多一次 Chat", "假想跑偏会带偏", "不替代语料质量"] }
+  ]
+}

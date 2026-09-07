@@ -1,0 +1,38 @@
+---
+sidebar_position: 1
+title: 概览
+description: ai-example 底层原理与源码架构讲解；架构图统一使用 Archify
+---
+
+# ai-example 原理与架构
+
+本栏目沉淀 [ai-example](https://github.com/Feike1993/ai-example) 的**底层原理**与**源码架构图**讲解。Cookbook 一页介绍仍在 [AI → AI Example](/docs/ai/ai-example)。
+
+架构图统一用 **Archify**（typed IR → 自包含 HTML，站内 iframe 嵌入）。
+
+每页结构对齐 playground `SampleLogic`，阅读顺序为：**问题 | 目的（双栏）→ Archify 图 → 流程步骤 → 优点 | 缺点（双栏）→ 应用场景 → 源码落点**。
+
+## 阅读顺序（基线）
+
+1. [Chat 与 Tool Calling](./principles/chat-tools)  
+2. [ReAct Agent](./principles/react-agent)  
+3. [RAG 离线 / 在线管线](./principles/rag-pipeline)  
+4. [三种记忆平面](./principles/memory-planes)  
+5. [MCP 进程边界](./principles/mcp-boundary)  
+
+## 进阶
+
+6. [Hybrid RAG](./principles/hybrid-retrieval/hybrid-rag) → [HyDE](./principles/hybrid-retrieval/hyde) → [语义分块](./principles/hybrid-retrieval/semantic-chunk) → [父子文档](./principles/hybrid-retrieval/parent-child) → [Citation](./principles/hybrid-retrieval/rag-citation)  
+7. [多 Agent](./principles/multi-agent/orchestrator)  
+8. [逐步 SSE](./principles/observability/agent-tool-sse) · [TokenUsage](./principles/observability/token-usage)  
+9. [Eval](./principles/quality/eval) · [护栏](./principles/quality/guardrail)  
+
+## 知识点地图
+
+| 分组 | 入口 |
+| --- | --- |
+| 模型与协议 | [Chat/Tool](./principles/chat-tools)、[ReAct](./principles/react-agent) |
+| RAG 检索 | [RAG 管线](./principles/rag-pipeline)、[Hybrid 等](./principles/hybrid-retrieval/hybrid-rag) |
+| 记忆与上下文 | [记忆平面](./principles/memory-planes) |
+| MCP 与多 Agent | [MCP](./principles/mcp-boundary)、[多 Agent](./principles/multi-agent/orchestrator) |
+| 可观测 / 护栏 | [SSE](./principles/observability/agent-tool-sse)、[Eval](./principles/quality/eval)、[护栏](./principles/quality/guardrail) |

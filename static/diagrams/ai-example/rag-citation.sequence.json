@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "ai-example RAG Citation 校验",
+    "locale": "zh-CN",
+    "output": "rag-citation.html",
+    "viewBox": [900, 680],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "ret", "label": "检索", "focus": ["user", "api", "store"], "note": "与基础 RAG 相同召回。" },
+      { "id": "alias", "label": "别名", "focus": ["api", "llm"], "note": "C1..Cn allowlist 消歧。" },
+      { "id": "val", "label": "校验", "focus": ["llm", "api", "user"], "note": "resolve + validate，失败拒答。" }
+    ]
+  },
+  "participants": [
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "Playground" },
+    { "id": "api", "type": "backend", "label": "RAG API", "sublabel": "citationMode" },
+    { "id": "store", "type": "database", "label": "VectorStore", "sublabel": "sources" },
+    { "id": "llm", "type": "cloud", "label": "Chat", "sublabel": "结构化答" }
+  ],
+  "segments": [
+    { "from": 140, "to": 280, "label": "检索" },
+    { "from": 300, "to": 460, "label": "结构化" },
+    { "from": 480, "to": 620, "label": "校验" }
+  ],
+  "messages": [
+    { "id": "ask", "from": "user", "to": "api", "y": 175, "label": "question", "variant": "emphasis" },
+    { "id": "search", "from": "api", "to": "store", "y": 220, "label": "similaritySearch", "variant": "emphasis" },
+    { "id": "hits", "from": "store", "to": "api", "y": 265, "label": "sources", "variant": "return" },
+    { "id": "alias", "from": "api", "to": "llm", "y": 340, "label": "C1..Cn + allowlist", "variant": "emphasis" },
+    { "id": "raw", "from": "llm", "to": "api", "y": 385, "label": "answer+citations", "variant": "return" },
+    { "id": "ok", "from": "api", "to": "user", "y": 520, "label": "校验通过", "variant": "return" },
+    { "id": "bad", "from": "api", "to": "user", "y": 565, "label": "CITATION_REFUSAL", "variant": "security" }
+  ],
+  "activations": [
+    { "participant": "api", "from": 170, "to": 580, "type": "backend" },
+    { "participant": "store", "from": 215, "to": 275, "type": "database" },
+    { "participant": "llm", "from": 335, "to": 395, "type": "cloud" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "可校验", "items": ["结构化 citations", "短别名消歧", "失败拒答不采信"] },
+    { "dot": "rose", "title": "动机", "items": ["自由文本可能未依据 sources", "模型对 sourceId 形态不一致"] },
+    { "dot": "orange", "title": "默认", "items": ["citationMode=none 保持自由文本", "required 才强制"] }
+  ]
+}

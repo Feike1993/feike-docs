@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example 输出护栏管道",
+    "locale": "zh-CN",
+    "viewBox": [980, 420],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "in", "label": "输入", "focus": ["user", "inDeny"], "note": "词表命中则短路。" },
+      { "id": "gen", "label": "生成", "focus": ["inDeny", "llm"], "note": "通过后才调模型。" },
+      { "id": "out", "label": "输出", "focus": ["llm", "outDeny", "user"], "note": "输出词表/结构再拦。" }
+    ]
+  },
+  "components": [
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "prompt", "pos": [40, 180], "size": [110, 56] },
+    { "id": "inDeny", "type": "security", "label": "input_deny", "sublabel": "词表", "pos": [220, 180], "size": [130, 56], "tag": "pre" },
+    { "id": "llm", "type": "cloud", "label": "Chat", "sublabel": "可选结构", "pos": [420, 180], "size": [120, 56] },
+    { "id": "outDeny", "type": "security", "label": "output_deny", "sublabel": "+structure", "pos": [620, 180], "size": [140, 56], "tag": "post" },
+    { "id": "ok", "type": "frontend", "label": "放行", "sublabel": "checks[]", "pos": [840, 80], "size": [110, 56] },
+    { "id": "block", "type": "security", "label": "拒答", "sublabel": "短路", "pos": [840, 280], "size": [110, 56] }
+  ],
+  "connections": [
+    { "id": "u-i", "from": "user", "to": "inDeny", "label": "输入", "variant": "emphasis" },
+    { "id": "i-l", "from": "inDeny", "to": "llm", "label": "通过", "variant": "emphasis" },
+    { "id": "l-o", "from": "llm", "to": "outDeny", "label": "回复", "variant": "emphasis" },
+    { "id": "o-ok", "from": "outDeny", "to": "ok", "label": "通过", "fromSide": "top", "toSide": "left", "via": [[690, 108], [840, 108]] },
+    { "id": "i-b", "from": "inDeny", "to": "block", "label": "命中", "variant": "security", "fromSide": "bottom", "toSide": "left", "via": [[285, 308], [840, 308]] },
+    { "id": "o-b", "from": "outDeny", "to": "block", "label": "命中", "variant": "security", "fromSide": "bottom", "toSide": "left", "via": [[690, 308], [840, 308]] }
+  ],
+  "cards": [
+    { "dot": "rose", "title": "硬约束", "items": ["词表短路", "不静默改写", "checks 可审计"] },
+    { "dot": "orange", "title": "限制", "items": ["易漏报/误报", "非完整安全产品"] },
+    { "dot": "emerald", "title": "落点", "items": ["答前/答后", "与 Chat 路径解耦"] }
+  ]
+}

@@ -1,0 +1,75 @@
+---
+sidebar_position: 5
+title: RAG 强制 Citation
+description: 结构化引用与校验拒答；Archify 时序对照源码
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# RAG 强制 Citation
+
+对应 sample **23**。有 hits 也必须带可机器校验的引用，失败则拒答。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="自由文本答案旁虽有 sources，但模型可能未真正依据它们；且不同模型对 `sourceId` 形态理解不一致。"
+  rightTitle="目的"
+  right="强制结构化引用并用短别名消歧，失败则拒答而非悄悄采信。"
+/>
+
+## 架构图
+
+下图示意上述解法，后续步骤按图展开。
+
+<DiagramFrame title="Citation 校验" tool="archify" description="别名消歧 → 结构化 → 校验；失败拒答。">
+  <ArchifyEmbed src="/diagrams/ai-example/rag-citation.html" title="RAG Citation" height={700} />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **检索** — 与现有 RAG 相同；空检索仍走拒答。  
+2. **别名上下文** — 拼 `C1..Cn` + allowlist。  
+3. **结构化答** — `{answer, citations}`。  
+4. **归一化与校验** — resolve 后 validate；失败返回 `CITATION_REFUSAL`。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>可机器校验；跨模型更稳。</li>
+      <li>与空检索拒答字段区分。</li>
+      <li>复用 StructuredOutputInvoker。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>多一次结构化约束成本。</li>
+      <li>流式路径未强制 citation。</li>
+      <li>同文件多 chunk 时文件名无法自动映射。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 知识库问答要可追溯。
+- 对照 `none` vs `required`。
+
+## 源码落点
+
+<SourceMap items={[
+  { node: '校验器', path: 'java/.../rag/CitationValidator.java', note: 'alias / resolve / validate。' },
+  { node: 'RAG 路径', path: 'java/.../rag/RagSampleService.java', note: 'citationMode=required。' },
+]} />
+
+## 刻意不做
+
+- 默认仍为 `none` 自由文本  
+- 流式路径本期不强制 citation  
+
+源码：[ai-example](https://github.com/Feike1993/ai-example)。
