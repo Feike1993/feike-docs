@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example 系统总览",
+    "locale": "zh-CN",
+    "viewBox": [1100, 600],
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "baseline",
+        "label": "基线协议",
+        "focus": ["ui", "api", "chat", "agent", "llm"],
+        "note": "Chat → Tools → ReAct：模型只出意图，应用执行。"
+      },
+      {
+        "id": "knowledge",
+        "label": "知识与记忆",
+        "focus": ["api", "rag", "memory", "vectors", "embed"],
+        "note": "RAG 语料与长期记忆分源；会话窗口单独控预算。"
+      },
+      {
+        "id": "boundary",
+        "label": "进程与编排",
+        "focus": ["api", "multi", "mcp", "mcpserver"],
+        "note": "MCP 暴露工具边界；多 Agent 做职责分离。"
+      }
+    ]
+  },
+  "components": [
+    { "id": "ui", "type": "frontend", "label": "Playground", "sublabel": "前端样例台", "pos": [40, 250], "size": [130, 56] },
+    { "id": "api", "type": "backend", "label": "Sample API", "sublabel": "编排入口 :8080", "pos": [230, 250], "size": [150, 56], "tag": "Host" },
+    { "id": "chat", "type": "backend", "label": "Chat / Tools", "sublabel": "意图 + Schema", "pos": [470, 40], "size": [150, 56], "tag": "01–03" },
+    { "id": "agent", "type": "backend", "label": "ReAct Agent", "sublabel": "显式 Loop", "pos": [470, 140], "size": [150, 56], "tag": "04" },
+    { "id": "multi", "type": "backend", "label": "多 Agent", "sublabel": "Orchestrator", "pos": [470, 250], "size": [150, 56], "tag": "08" },
+    { "id": "rag", "type": "backend", "label": "RAG 管线", "sublabel": "检索生成", "pos": [470, 360], "size": [150, 56], "tag": "06+" },
+    { "id": "memory", "type": "backend", "label": "记忆平面", "sublabel": "窗口 / facts", "pos": [470, 470], "size": [150, 56], "tag": "07/11" },
+    { "id": "llm", "type": "cloud", "label": "Chat LLM", "sublabel": "Provider 注册", "pos": [720, 80], "size": [140, 56] },
+    { "id": "mcp", "type": "backend", "label": "MCP Client", "sublabel": "inproc / remote", "pos": [720, 250], "size": [140, 56], "tag": "05/13" },
+    { "id": "embed", "type": "cloud", "label": "Embedding", "sublabel": "独立配置", "pos": [720, 360], "size": [140, 56] },
+    { "id": "mcpserver", "type": "backend", "label": "mcp-server", "sublabel": ":8081", "pos": [930, 250], "size": [130, 56], "tag": "remote" },
+    { "id": "vectors", "type": "database", "label": "pgvector", "sublabel": "多 corpus", "pos": [930, 430], "size": [130, 56] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "主应用", "wraps": ["api", "chat", "agent", "multi", "rag", "memory", "mcp"] },
+    { "kind": "security-group", "label": "旁进程", "wraps": ["mcpserver"] }
+  ],
+  "connections": [
+    { "id": "ui-api", "from": "ui", "to": "api", "label": "HTTP / SSE", "variant": "emphasis" },
+    {
+      "id": "api-chat",
+      "from": "api",
+      "to": "chat",
+      "label": "单轮",
+      "fromSide": "top",
+      "toSide": "left",
+      "via": [[305, 68], [470, 68]],
+      "labelAt": [370, 56]
+    },
+    {
+      "id": "api-agent",
+      "from": "api",
+      "to": "agent",
+      "label": "多跳",
+      "fromSide": "top",
+      "toSide": "left",
+      "via": [[305, 168], [470, 168]],
+      "labelAt": [370, 156]
+    },
+    { "id": "api-multi", "from": "api", "to": "multi", "label": "分工", "variant": "emphasis" },
+    {
+      "id": "api-rag",
+      "from": "api",
+      "to": "rag",
+      "label": "接地",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "via": [[305, 388], [470, 388]],
+      "labelAt": [370, 376]
+    },
+    {
+      "id": "api-mem",
+      "from": "api",
+      "to": "memory",
+      "label": "召回",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "via": [[305, 498], [470, 498]],
+      "labelAt": [370, 486]
+    },
+    { "id": "chat-llm", "from": "chat", "to": "llm", "label": "completion", "variant": "emphasis", "labelDy": -16 },
+    {
+      "id": "agent-llm",
+      "from": "agent",
+      "to": "llm",
+      "label": "每步",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [[680, 168], [680, 108]],
+      "labelAt": [650, 148]
+    },
+    { "id": "multi-mcp", "from": "multi", "to": "mcp", "label": "工具源", "variant": "emphasis" },
+    { "id": "mcp-server", "from": "mcp", "to": "mcpserver", "label": "JSON-RPC", "variant": "emphasis" },
+    { "id": "rag-embed", "from": "rag", "to": "embed", "label": "向量化", "variant": "emphasis" },
+    { "id": "embed-vec", "from": "embed", "to": "vectors", "label": "chunks", "variant": "emphasis", "fromSide": "right", "toSide": "left", "via": [[880, 388], [880, 458]], "labelAt": [900, 410] },
+    {
+      "id": "mem-vec",
+      "from": "memory",
+      "to": "vectors",
+      "label": "facts",
+      "fromSide": "right",
+      "toSide": "bottom",
+      "via": [[680, 498], [995, 498], [995, 486]],
+      "labelAt": [780, 486]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "读图顺序",
+      "items": [
+        "左：Playground → Sample API",
+        "中：样例能力（Chat…记忆）",
+        "右：模型、MCP、向量库"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "边界原则",
+      "items": [
+        "模型只出意图，Host 执行",
+        "RAG corpus ≠ 记忆 facts",
+        "MCP remote 才暴露进程边界"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "横切能力",
+      "items": [
+        "SSE / TokenUsage 不改主路径",
+        "Eval 冒烟回归样例目标",
+        "Guardrail 词表与结构校验"
+      ]
+    }
+  ]
+}

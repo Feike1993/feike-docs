@@ -4,6 +4,9 @@ title: 概览
 description: ai-example 底层原理与源码架构讲解；架构图统一使用 Archify
 ---
 
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+
 # ai-example 原理与架构
 
 本栏目沉淀 [ai-example](https://github.com/Feike1993/ai-example) 的**底层原理**与**源码架构图**讲解。
@@ -11,6 +14,23 @@ description: ai-example 底层原理与源码架构讲解；架构图统一使�
 架构图统一用 **Archify**（typed IR → 自包含 HTML，站内 iframe 嵌入）。
 
 每页结构对齐 playground `SampleLogic`，阅读顺序为：**问题 | 目的（双栏）→ Archify 图 → 流程步骤 → 优点 | 缺点（双栏）→ 应用场景 → 源码落点**。
+
+## 系统总览
+
+下图把样例能力、模型与旁进程 MCP 放在一张图里；后面各原理页再展开对应局部。
+
+<DiagramFrame
+  title="ai-example 系统总览"
+  tool="archify"
+  description="Playground → Sample API → Chat/Agent/多 Agent/RAG/记忆；右侧为 LLM、MCP、pgvector。">
+
+  <ArchifyEmbed
+    src="/diagrams/ai-example/system-overview.html"
+    title="ai-example 系统总览"
+    height={760}
+  />
+
+</DiagramFrame>
 
 ## 阅读顺序（基线）
 
