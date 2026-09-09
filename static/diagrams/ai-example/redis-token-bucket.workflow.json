@@ -1,0 +1,79 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "ai-example 令牌桶 Lua 脚本",
+    "locale": "zh-CN",
+    "output": "redis-token-bucket-lua.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "happy-path",
+        "label": "扣 1 放行",
+        "focus": ["consume", "hmget", "refill", "decide", "debit", "write"],
+        "note": "读 Hash、补令牌、余额够则扣 1 并写回。"
+      },
+      {
+        "id": "deny-retry",
+        "label": "拒绝仍写回",
+        "focus": ["decide", "retry", "write"],
+        "note": "余额不足时算 Retry-After，仍然 HSET 与 PEXPIRE。"
+      },
+      {
+        "id": "clock-guard",
+        "label": "时钟回拨",
+        "focus": ["hmget", "clock", "refill"],
+        "note": "elapsed < 0 时按 0，避免误扣已有令牌。"
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "lua", "label": "Lua 原子脚本" },
+    { "id": "branch", "label": "旁路", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "enter", "label": "进入脚本", "fromCol": 0, "toCol": 1 },
+    { "id": "settle", "label": "补令牌并判断", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "commit", "label": "写回 TTL", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": ["consume", "hmget", "refill", "decide", "debit", "write"],
+  "nodes": [
+    { "id": "consume", "lane": "lua", "col": 0, "type": "backend", "label": "consume()", "sublabel": "now / refill / ttl" },
+    { "id": "hmget", "lane": "lua", "col": 1, "type": "database", "label": "HMGET", "sublabel": "新桶满容" },
+    { "id": "refill", "lane": "lua", "col": 2, "type": "backend", "label": "补令牌", "sublabel": "elapsed × refill" },
+    { "id": "decide", "lane": "lua", "col": 3, "type": "security", "label": "tokens≥1?", "sublabel": "放行或拒绝" },
+    { "id": "debit", "lane": "lua", "col": 4, "type": "backend", "label": "扣 1", "sublabel": "allowed=1" },
+    { "id": "write", "lane": "lua", "col": 5, "type": "database", "label": "HSET+PEXPIRE", "sublabel": "TTL=2×window" },
+    { "id": "clock", "lane": "branch", "col": 2, "type": "messagebus", "label": "elapsed=0", "sublabel": "时钟回拨" },
+    { "id": "retry", "lane": "branch", "col": 4, "type": "security", "label": "算 retry", "sublabel": "Retry-After" }
+  ],
+  "edges": [
+    { "id": "eval", "from": "consume", "to": "hmget", "label": "EVAL Lua", "variant": "emphasis" },
+    { "id": "read-refill", "from": "hmget", "to": "refill" },
+    { "id": "refill-decide", "from": "refill", "to": "decide", "variant": "emphasis" },
+    { "id": "allow", "from": "decide", "to": "debit", "label": "allowed", "variant": "emphasis" },
+    { "id": "debit-write", "from": "debit", "to": "write", "variant": "emphasis" },
+    { "id": "clock-guard", "from": "hmget", "to": "clock", "label": "elapsed<0", "variant": "dashed", "role": "branch" },
+    { "id": "clock-join", "from": "clock", "to": "refill", "variant": "dashed", "role": "return" },
+    { "id": "deny", "from": "decide", "to": "retry", "label": "余额不足", "variant": "security", "role": "error" },
+    { "id": "retry-write", "from": "retry", "to": "write", "label": "仍写回", "variant": "dashed", "role": "branch" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "一次脚本",
+      "items": [
+        "读、补、扣、写都在 Redis 内",
+        "单脚本串行，避免多实例超卖"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "拒绝也提交",
+      "items": [
+        "被拒请求仍写回 ts",
+        "TTL 两个窗口回收闲置桶"
+      ]
+    }
+  ]
+}

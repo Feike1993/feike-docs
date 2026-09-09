@@ -18,7 +18,7 @@
 | 栏目 | 路径 | sidebarId | 现状 |
 |------|------|----------|------|
 | AI 编程 | `docs/ai/` | `aiSidebar` | 有内容：`claude-code/`、`agent-learning/`、`diagramming-tools.mdx`；空目录占位：`agent-patterns`、`mcp`、`memory`、`observability`、`quality`、`rag` |
-| ai-example | `docs/ai-example/` | `aiExampleSidebar` | 原则讲解页 + Archify 图；入口 `overview.mdx`；原则在 `principles/`（含 hybrid-retrieval / multi-agent / observability / quality） |
+| ai-example | `docs/ai-example/` | `aiExampleSidebar` | 原则讲解页 + Archify 图；入口 `overview.mdx`；原则在 `principles/`（含 hybrid-retrieval / multi-agent / observability / quality / production） |
 | 技术栈 | `docs/tech-stack/` | `techStackSidebar` | `deployment/`、`ide/`、`jvm/` |
 | 项目经历 | `docs/projects/` | `projectExperienceSidebar` | `ime/`、`ipd/`、`qms/`（各含 overview / architecture / recap 等） |
 

@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example Redis 令牌桶",
+    "locale": "zh-CN",
+    "output": "redis-token-bucket.html",
+    "viewBox": [980, 480],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "keys", "label": "限流维度", "focus": ["chat", "auth", "bucket"], "note": "问答按租户+主体，登录按 IP。" },
+      { "id": "eval", "label": "原子结算", "focus": ["bucket", "redis"], "note": "单次 Lua：补令牌并扣 1。" },
+      { "id": "outcome", "label": "放行或 429", "focus": ["redis", "ok", "deny"], "note": "拒绝写 Retry-After；Redis 挂了 fail-open。" }
+    ]
+  },
+  "components": [
+    { "id": "chat", "type": "backend", "label": "Chat 入口", "sublabel": "tenant+subject", "pos": [40, 80], "size": [140, 56] },
+    { "id": "auth", "type": "security", "label": "登录入口", "sublabel": "login IP", "pos": [40, 280], "size": [140, 56], "tag": "更严容量" },
+    { "id": "bucket", "type": "backend", "label": "RedisTokenBucket", "sublabel": "consume()", "pos": [280, 180], "size": [168, 56], "tag": "Lua" },
+    { "id": "redis", "type": "database", "label": "Redis Hash", "sublabel": "tokens + ts", "pos": [530, 180], "size": [140, 56], "tag": "TTL=2×window" },
+    { "id": "ok", "type": "frontend", "label": "放行", "sublabel": "X-RateLimit-Remaining", "pos": [760, 80], "size": [168, 56] },
+    { "id": "deny", "type": "security", "label": "429 Handler", "sublabel": "Retry-After", "pos": [760, 280], "size": [168, 56] }
+  ],
+  "connections": [
+    { "id": "chat-bucket", "from": "chat", "to": "bucket", "label": "prod:rl:tenant:subject", "variant": "emphasis" },
+    { "id": "auth-bucket", "from": "auth", "to": "bucket", "label": "prod:rl:login:ip", "variant": "security" },
+    { "id": "bucket-redis", "from": "bucket", "to": "redis", "label": "EVAL Lua", "variant": "emphasis" },
+    { "id": "redis-ok", "from": "redis", "to": "ok", "label": "allowed", "variant": "emphasis" },
+    { "id": "redis-deny", "from": "redis", "to": "deny", "label": "denied", "variant": "security" },
+    { "id": "bucket-failopen", "from": "bucket", "to": "ok", "label": "fail-open", "variant": "dashed", "fromSide": "top", "toSide": "top", "via": [[364, 48], [844, 48]] }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "原子 Lua", "items": ["读状态、补充、扣减一次完成", "多实例不会超卖", "拒绝也写回 ts"] },
+    { "dot": "orange", "title": "fail-open", "items": ["限流是保护性优化", "与会话锁同向", "与 SSE 日志 fail-closed 相反"] },
+    { "dot": "cyan", "title": "状态", "items": ["只存 tokens 与 ts", "TTL 两个窗口", "闲置自动回收"] }
+  ]
+}

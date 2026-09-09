@@ -1,0 +1,9 @@
+{
+  "label": "生产实践",
+  "position": 14,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "生产路径上的限流、锁与降级取向：Redis 令牌桶等。"
+  }
+}

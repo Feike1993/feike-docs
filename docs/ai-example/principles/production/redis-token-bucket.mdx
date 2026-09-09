@@ -1,0 +1,164 @@
+---
+sidebar_position: 1
+title: Redis 令牌桶
+description: 跨实例原子补令牌与扣减；Lua 脚本、fail-open 与 Retry-After；Archify 对照源码
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# Redis 令牌桶
+
+对应生产路径 `com.feike.ai.production.ratelimit`。用 Redis Hash + 单次 Lua 在多实例下原子完成「补令牌 + 扣 1」。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="多实例共享限流时，进程内计数各算各的；若拆成多次 GET/SET，并发窗口会超卖。限流又不能变成可用性硬依赖：Redis 挂了就把问答整条停掉不划算。"
+  rightTitle="目的"
+  right="每个限流维度一个 Hash（只存 tokens 与 ts），Lua 一次完成补齐、扣减、写回、设 TTL；拒绝时给出 Retry-After，Redis 不可用则降级放行。"
+/>
+
+## 架构图
+
+下图是请求链路上的位置：Chat 按租户+主体、登录按 IP，都走到同一个 `consume`；脚本在 Redis 内结算后，要么放行并带剩余令牌，要么 429。
+
+<DiagramFrame
+  title="请求链路上的令牌桶"
+  tool="archify"
+  description="Chat / 登录 → consume → EVAL Lua → Hash；放行、429 或 Redis 挂了 fail-open。">
+  <ArchifyEmbed
+    src="/diagrams/ai-example/redis-token-bucket.html"
+    title="请求链路上的令牌桶"
+    height={560}
+  />
+</DiagramFrame>
+
+## Lua 结算流程
+
+下图是帮助理解算法的主图：读状态、补令牌、判断、写回都在同一脚本里。被拒请求也会写回 `ts`，才能算出准确的等待时间。
+
+<DiagramFrame
+  title="Lua 原子脚本"
+  tool="archify"
+  description="HMGET → 新桶满容 → 补令牌 → 扣 1 或算 retry → HSET + PEXPIRE；时钟回拨 elapsed=0。">
+  <ArchifyEmbed
+    src="/diagrams/ai-example/redis-token-bucket-lua.html"
+    title="Lua 原子脚本"
+    height={620}
+  />
+</DiagramFrame>
+
+桶不按请求记账。默认 `capacity=30`、`window=60s`，每毫秒补充量：
+
+```text
+refillPerMs = capacity / window.toMillis()
+tokens      = min(capacity, tokens + elapsed * refillPerMs)
+```
+
+新 key 以满容量开始。`elapsed = now - ts`，若时钟回拨则按 0，避免错误地扣掉已有令牌。TTL 设为两个窗口：闲置桶自动回收，同时保留一个窗口内的状态，保证补充计算连续。
+
+## 流程步骤
+
+1. **确定 key 与容量**  
+   Chat 用 `prod:rl:{tenantId}:{subject}`，走默认容量；登录用 `prod:rl:login:{ip}`，走更严的 `loginCapacity`。`capacity` 参数为 null 或小于 1 时回退配置值。
+
+2. **把结算参数交给 Lua**  
+   Java 只算 `refillPerMs`、`now`（`System.currentTimeMillis`）和 `ttl = 2 * window`，然后一次 `EVAL`。不要拆成先读再写。
+
+3. **脚本内补令牌并决定是否扣 1**  
+   读 `tokens`/`ts`；新桶满容；按流逝时间补到不超过容量；余额 ≥ 1 则减 1 放行，否则 `retry = ceil((1 - tokens) / refill)`。
+
+4. **放行或抛 429**  
+   返回 `{allowed, floor(tokens), retryMs}`。拒绝时变成 `RateLimitExceededException`，Web 层写 `Retry-After` 与 `X-RateLimit-Remaining`。
+
+5. **Redis 挂了降级放行**  
+   通信或脚本结果异常打 warn 并返回满容量作为展示值。`RateLimitExceededException` 必须原样抛出，不能被外层 `RuntimeException` 当成 Redis 故障吞掉。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>单脚本串行，多实例不会读到同一余额后重复放行。</li>
+      <li>每个维度只存两个字段，闲置靠 TTL 回收。</li>
+      <li>拒绝仍推进时间戳，Retry-After 与桶状态一致。</li>
+      <li>限流失败不拖垮问答，取向与会话锁一致。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>时钟由各实例传入，跨机偏差会让补充略快或略慢。</li>
+      <li>fail-open 在 Redis 故障时放开上限，需靠其它层兜底。</li>
+      <li>令牌是平滑补充，不是固定窗口的「整点清零」。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 生产问答按租户+用户限流，避免打满模型配额。
+- 登录按 IP 用更小容量，抑制撞库。
+- 需要跨实例共享、且能给出 `Retry-After` 的 HTTP 限流。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: '令牌桶',
+      path: 'java/.../ratelimit/manager/RedisTokenBucket.java',
+      note: 'Lua 补令牌 + 扣 1；Redis 故障 fail-open。',
+    },
+    {
+      node: '429 异常',
+      path: 'java/.../ratelimit/service/RateLimitExceededException.java',
+      note: 'retryAfterSeconds + remaining。',
+    },
+    {
+      node: '问答限流',
+      path: 'java/.../chat/controller/ProductionChatController.java',
+      note: 'prod:rl:{tenantId}:{subject}。',
+    },
+    {
+      node: '登录限流',
+      path: 'java/.../auth/controller/ProductionAuthController.java',
+      note: 'prod:rl:login:{ip}；loginCapacity。',
+    },
+    {
+      node: '异常处理',
+      path: 'java/.../web/ProductionExceptionHandler.java',
+      note: '补写 Retry-After / X-RateLimit-Remaining。',
+    },
+    {
+      node: '容量与窗口',
+      path: 'java/.../config/ProductionProperties.java',
+      note: '默认 30 / 60s；登录 10。',
+    },
+    {
+      node: '集成测试',
+      path: 'java/.../ratelimit/manager/RedisTokenBucketIT.java',
+      note: '超容量抛 429；需 RUN_REDIS_IT。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| Lua 一次结算 | Redis 对单脚本串行，无 GET/SET 竞争窗口；脚本必须自包含 |
+| 只存 tokens + ts | 状态小、好回收；无法按请求审计逐条记录 |
+| TTL = 两个窗口 | 闲置自动消失，又保留一个窗口的连续性 |
+| Redis 挂了放行 | 限流是保护性优化；与会话锁同向，与 SSE 事件日志 fail-closed 相反 |
+| 客户端传入 now | 与 JVM 时钟对齐；跨实例偏差需容忍 |
+
+## 刻意不做
+
+- 不按请求逐条存储访问日志  
+- 不把限流做成可用性硬依赖（Redis 故障不停问答）  
+- 不拆成多次客户端 Redis 命令  
+
+源码：[ai-example](https://github.com/Feike1993/ai-example) · production ratelimit。
