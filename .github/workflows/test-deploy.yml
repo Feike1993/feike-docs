@@ -29,3 +29,15 @@ jobs:
 
       - name: Build website
         run: pnpm run build
+
+      - name: Check pages and Archify embeds
+        run: |
+          node scripts/serve-docs.mjs --port 3000 &
+          trap 'kill %1' EXIT
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -sf -o /dev/null http://127.0.0.1:3000/feike-docs/; then
+              break
+            fi
+            sleep 1
+          done
+          pnpm check:pages

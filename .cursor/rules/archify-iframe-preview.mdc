@@ -1,0 +1,22 @@
+---
+description: 改文档或预览后必须全站抽检 Archify iframe，禁止只用 docusaurus serve
+alwaysApply: true
+---
+
+# 文档页与 Archify 图框抽检
+
+Archify 图画在 `static/diagrams/**/*.html`，页面用 iframe 嵌入。本地官方 `docusaurus serve` 会把 `*.html` 301 成无扩展名路径，且 Location **丢掉** `/feike-docs/`，**所有**图框都会变成站点首页。GitHub Pages 没有这层跳转。
+
+## 禁止
+
+- 不要用 `docusaurus serve` / `pnpm docusaurus serve` 做预览。只用 `pnpm serve`（`scripts/serve-docs.mjs`）。
+- 不要只打开概览页就宣称图框正常。凡动过预览、baseUrl、serve、iframe、diagrams，必须跑全站抽检。
+- 不要把 Archify `src` 改成去掉 `.html` 的路径来「绕过」本地 301；GitHub Pages 按真实文件名提供。
+
+## 必须做
+
+1. 预览：`pnpm build && pnpm serve`
+2. 抽检：`pnpm check:pages`（sitemap 全部页面 + 每一处 `ArchifyEmbed`）
+3. 抽检失败先修 serve / iframe，再看内容
+
+`pnpm start` 开发热更新可以；不要和 `pnpm serve` 抢 3000 端口。

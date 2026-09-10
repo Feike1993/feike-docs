@@ -37,7 +37,8 @@
 | 文档内嵌 Archify 图 | MDX 中 `ArchifyEmbed`；产物 `static/diagrams/ai-example/*.html`；规格 `*.{architecture,dataflow,sequence,lifecycle}.json` |
 | 画图工具选型文 | `docs/ai/diagramming-tools.mdx` + `static/diagrams/ai/` |
 | Grafana k6 压测文 | `docs/tech-stack/loadtest/k6.mdx`；截图 `static/img/tech-stack/k6/` |
-| 本地开发 / 构建 | `pnpm start` / `pnpm build`（勿用 npm/yarn） |
+| 本地开发 / 构建 | `pnpm start` / `pnpm build` / `pnpm serve`（勿用 `docusaurus serve`，会把 Archify iframe 打回首页） |
+| 全站抽检 | `pnpm check:pages`（sitemap + 全部 ArchifyEmbed；需先 `pnpm serve`） |
 | 类型检查 | `pnpm typecheck`（`tsconfig.json`） |
 | Pages 部署流水线 | `.github/workflows/deploy.yml` |
 

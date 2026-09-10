@@ -14,6 +14,10 @@ type ArchifyEmbedProps = {
 
 /**
  * 嵌入 Archify 自包含 HTML 产物（iframe）。产物放在 static/，不引入 React 依赖。
+ *
+ * src 必须带 `.html`：GitHub Pages 按真实文件名提供。不要改成无扩展名路径。
+ * 本地预览请用 `pnpm serve`（scripts/serve-docs.mjs）；官方 `docusaurus serve`
+ * 会把 `.html` 301 掉且丢掉 baseUrl，iframe 会变成站点首页。
  */
 export default function ArchifyEmbed({
   src,
