@@ -4,6 +4,6 @@
   "collapsed": true,
   "link": {
     "type": "generated-index",
-    "description": "生产路径上的限流、锁与降级取向：Redis 令牌桶等。"
+    "description": "生产路径上的限流、锁与降级取向：Redis 令牌桶；本机验证见 Grafana k6。"
   }
 }

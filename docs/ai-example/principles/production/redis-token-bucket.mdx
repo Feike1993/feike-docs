@@ -142,6 +142,16 @@ tokens      = min(capacity, tokens + elapsed * refillPerMs)
       path: 'java/.../ratelimit/manager/RedisTokenBucketIT.java',
       note: '超容量抛 429；需 RUN_REDIS_IT。',
     },
+    {
+      node: 'chat 限流压测',
+      path: 'loadtest/k6/rate_limit.js',
+      note: '连打护栏题打穿 chat 桶；不进 CI。',
+    },
+    {
+      node: '登录限流压测',
+      path: 'loadtest/k6/login_limit.js',
+      note: '同 IP 连打 /auth/token；摘要怎么读见 Grafana k6。',
+    },
   ]}
 />
 
@@ -160,5 +170,7 @@ tokens      = min(capacity, tokens + elapsed * refillPerMs)
 - 不按请求逐条存储访问日志  
 - 不把限流做成可用性硬依赖（Redis 故障不停问答）  
 - 不拆成多次客户端 Redis 命令  
+
+本机用 k6 打穿桶、读终端摘要：见 [Grafana k6](/docs/tech-stack/loadtest/k6)。Lua 正确性仍看 `RedisTokenBucketIT`，不把压测默认套件打进 CI。
 
 源码：[ai-example](https://github.com/Feike1993/ai-example) · production ratelimit。
