@@ -1,0 +1,118 @@
+---
+sidebar_position: 12
+title: Agent 看图
+description: 默认 VL 不支持 Function Calling；先转写再走文本工具循环；历史仍只写占位
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# Agent 看图
+
+对应 `ProductionImageDescribe` 与生产 Agent 的 multipart 入口。问答侧可以把图直接放进 `UserMessage` 的 Media。Agent 不行——默认视觉模型 **没有 Function Calling**。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="本仓默认 VL 是 DashScope qwen-vl-plus（Qwen2.5-VL），官方不支持 Function Calling。文本 Agent 常走 DeepSeek，工具循环已经在用，但识图不走 DeepSeek。若把 VL 硬挂进 ReAct，这一轮既不能调 search_kb，也会逼着升级默认视觉模型。"
+  rightTitle="目的"
+  right="有图时 VL 只转写或简述画面，不调工具、不作答用户任务。转写正文拼进首条纯文本 UserMessage，循环仍走 ChatModel + 现有工具。位图用完即弃。"
+/>
+
+## 时序
+
+`POST /agent/stream` 带同名 `image` / `document`。无附件仍走 `GET /agent/stream`。同步 `POST /agent` JSON 本阶段不带附件。
+
+<DiagramFrame
+  title="先转写，再文本 ReAct"
+  tool="archify"
+  description="VL 只出画面正文；文本模型再 tool_call。">
+  <ArchifyEmbed
+    src="/diagrams/ai-example/agent-vl.html"
+    title="Agent 先转写再工具"
+    height={740}
+  />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **进循环前的 422**  
+   超件数、违禁词、坏 mime 在 VL 之前返回。默认 Playwright 覆盖这些，不打 Chat / VL。
+
+2. **VL 的系统提示**  
+   「只转写或简述图中可见内容。不要回答用户任务，不要调工具，不要发挥。」多图按 `[图片1]`、`[图片2]` 分段。
+
+3. **文本循环**  
+   `UserMessage` **无 Media**。仅文档时抽出正文进用户文本，不调 VL。`meta` 带 `hasImage` / `imageCount` / `hasDocument` / `ocrUsed` / `visionTranscribed`。
+
+4. **落库**  
+   复用 `[图片]` / `[文档]` 占位，不写 blob、不写转写正文——避免把视觉模型的中间结果当成用户原话。
+
+5. **不要升模型来抄近路**  
+   不要把默认视觉升到带 FC 的型号，也不要把 DeepSeek 当本仓 VL。约束写进代码，是为了演示「模型能力矩阵不齐时怎么拆步」。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>工具循环仍用已经验证过的文本模型。</li>
+      <li>与扫描 OCR「先转写再理解」是同一套路。</li>
+      <li>产品约束写死，避免演示时偷偷换模型。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>多一趟 VL，首字更慢、更贵。</li>
+      <li>转写会丢失「圈在图上的精确空间关系」。</li>
+      <li>转写幻觉可能被后续工具当成事实。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 视觉模型与工具模型不是同一个、且视觉侧没有 FC。
+- 要把「看见图」和「调用 search_kb」拆成两段可测试的契约。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: '转写',
+      path: 'java/.../media/manager/ProductionImageDescribe.java',
+      note: 'VL 只简述；位图即弃。',
+    },
+    {
+      node: '本轮媒体',
+      path: 'java/.../agent/model/AgentTurnMedia.java',
+      note: '图 + 文档进入编排。',
+    },
+    {
+      node: 'Agent 编排',
+      path: 'java/.../agent/service/impl/ProductionAgentServiceImpl.java',
+      note: '先转写再文本 Loop。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| 拆成两段模型 | 能用现有工具；多一跳延迟 |
+| 不升级默认 VL | 演示真实约束；不能秀「同轮 FC + 看图」 |
+| 历史不留转写 | 避免把模型中间态当用户输入；多轮看不见图 |
+
+## 刻意不做
+
+- 不把 qwen3-vl-plus 设成默认来「顺便支持 FC」  
+- 不把 DeepSeek 当 VL  
+- 默认 E2E 不打真看图循环
+
+附件上限与不落盘：见 [媒体探针](./media-probe)。工具策略：见 [生产 Agent 工具策略](./agent-tool-policy)。
+
+源码：[ai-example](https://github.com/Feike1993/ai-example) · production agent media。

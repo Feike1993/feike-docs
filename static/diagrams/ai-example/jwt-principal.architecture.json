@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example JWT 与显式 Principal",
+    "locale": "zh-CN",
+    "output": "jwt-principal.html",
+    "viewBox": [1080, 520],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "arm", "label": "只武装 /api/v1", "focus": ["samples", "filter", "login"], "note": "教学路径不进 Filter。" },
+      { "id": "pass", "label": "显式下传", "focus": ["filter", "controller", "service"], "note": "request attribute → 方法参数。" },
+      { "id": "vt", "label": "虚拟线程", "focus": ["service", "holder", "sse"], "note": "SecurityContext 跨虚拟线程会丢。" }
+    ]
+  },
+  "components": [
+    { "id": "samples", "type": "backend", "label": "样例路径", "sublabel": "/chat /rag", "pos": [40, 80], "size": [140, 56], "tag": "放行" },
+    { "id": "login", "type": "security", "label": "POST /auth/token", "sublabel": "发 JWT", "pos": [40, 280], "size": [140, 56] },
+    { "id": "filter", "type": "security", "label": "JwtAuthFilter", "sublabel": "只扫 /api/v1", "pos": [260, 280], "size": [160, 56], "tag": "HMAC" },
+    { "id": "controller", "type": "backend", "label": "Controller", "sublabel": "require(http)", "pos": [500, 280], "size": [140, 56] },
+    { "id": "service", "type": "backend", "label": "编排层", "sublabel": "Principal 参数", "pos": [720, 280], "size": [150, 56] },
+    { "id": "holder", "type": "external", "label": "SecurityContext", "sublabel": "虚拟线程会丢", "pos": [500, 80], "size": [160, 56], "tag": "不用" },
+    { "id": "sse", "type": "messagebus", "label": "SSE worker", "sublabel": "虚拟线程", "pos": [720, 80], "size": [150, 56] }
+  ],
+  "connections": [
+    { "id": "login-filter", "from": "login", "to": "filter", "label": "登录放行", "variant": "dashed" },
+    { "id": "filter-ctl", "from": "filter", "to": "controller", "label": "ATTR", "variant": "emphasis", "labelDy": -22 },
+    { "id": "ctl-svc", "from": "controller", "to": "service", "label": "显式参数", "variant": "emphasis" },
+    { "id": "svc-sse", "from": "service", "to": "sse", "label": "携带 Principal", "variant": "emphasis" },
+    { "id": "holder-sse", "from": "holder", "to": "sse", "label": "不会自动带上", "variant": "security", "fromSide": "right", "toSide": "left", "labelDy": -22 },
+    { "id": "samples-skip", "from": "samples", "to": "controller", "label": "不经过 Filter", "variant": "dashed", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "分平面", "items": ["教学路径保持匿名", "缺 KEK 时 /api/v1 为 503", "HMAC 来自信封 jwt.hmac"] },
+    { "dot": "rose", "title": "为何显式传", "items": ["SSE 在虚拟线程跑", "Holder 跨线程为空", "错租户 404 不 403"] },
+    { "dot": "orange", "title": "Prometheus", "items": ["刮取走独立 Bearer", "不复用用户 JWT", "空 token 则仍要 JWT"] }
+  ]
+}

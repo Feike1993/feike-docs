@@ -1,0 +1,125 @@
+---
+sidebar_position: 7
+title: 生产 RAG 默认
+description: 查询扩展默关；假想文档不进 sources；全文路可缺省；空检索拒答；租户语料
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# 生产 RAG 默认
+
+对应生产路径 `com.feike.ai.production.rag`。RRF、HyDE、citation 的**算法**已经写在教学页；本页只写生产链路上改掉的默认值——那些默认会直接变成首字延迟和账单。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="教学 Hybrid / HyDE 为了对照效果，常常每次查询都多打一趟 LLM。生产上这会让 TTFT 翻倍、成本翻倍，而收益高度依赖语料。全文索引若缺失，也不该把整次问答打成 500。"
+  rightTitle="目的"
+  right="rewrite / HyDE 做成请求级开关，默认 none。假想文档只作检索 query，不进 sources。关键词路不存在时退回纯向量。空命中固定拒答，不调 Chat。"
+/>
+
+## 数据流
+
+下图与教学 Hybrid 页同构，多了一段默认为 none 的 QueryExpander。空命中在融合之后短路，终态仍是「接地或拒答」，不会为了空上下文去赌模型。
+
+<DiagramFrame
+  title="扩展默关的生产检索"
+  tool="archify"
+  description="问题 → 默认不扩展 → 向量 + 可选全文 → RRF → 有命中才生成，否则拒答。">
+  <ArchifyEmbed
+    src="/diagrams/ai-example/production-rag.html"
+    title="生产 RAG 默认"
+    height={720}
+  />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **语料带租户**  
+   检索过滤 `tenant_id`（及工业 corpus）。教学对照页的「全局演示语料」不能直接当成生产隔离。
+
+2. **扩展 opt-in**  
+   `queryExpansion=none|rewrite|hyde`。打开 rewrite/HyDE 要额外 LLM，本机选跑；工业页默认「无扩展」，不带该参数的流式 URL 与现在一致。
+
+3. **假想文档不进 sources**  
+   HyDE 段落只用于 embedding 检索，回答仍只接地真实切片，避免把模型臆造写进引用列表。
+
+4. **少一路仍回答**  
+   `RagKeywordRetriever` 不存在时退回纯向量。少一路召回还能答；直接失败不能。
+
+5. **空检索拒答**  
+   无命中发固定拒答 delta 后 done，不调 LLM。有图时图片本身是上下文，规则见 [媒体探针](./media-probe)。
+
+6. **citation fail-closed**  
+   生产护栏在输出侧要求可校验引用，失败 422，不是警告。算法细节见教学 [强制 Citation](../principles/hybrid-retrieval/rag-citation)。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>默认路径的延迟和费用可预期。</li>
+      <li>扩展能力还在，只是不再偷偷打满。</li>
+      <li>不重复解释 RRF，读者可跳回教学页。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>默认无扩展时，短问句 / 口语问法召回可能变差。</li>
+      <li>租户语料演示集很小，空检索在未 ingest 时是常态。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 把 cookbook 的 Hybrid/HyDE 接到产品时，先关掉默认扩展。
+- 需要「没索引就拒绝」而不是「没索引就胡说」。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: '检索',
+      path: 'java/.../rag/retrieve/service/impl/ProductionRetrievalServiceImpl.java',
+      note: '扩展默关；全文缺失退回向量。',
+    },
+    {
+      node: '扩展',
+      path: 'java/.../rag/retrieve/manager/ProductionQueryExpander.java',
+      note: 'none / rewrite / hyde。',
+    },
+    {
+      node: '生成',
+      path: 'java/.../rag/generate/service/ProductionAnswerGenerator.java',
+      note: '接地生成；空检索不走进来。',
+    },
+    {
+      node: '编排',
+      path: 'java/.../chat/service/impl/ProductionChatServiceImpl.java',
+      note: 'lock → history → retrieve → generate → persist。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| 扩展默认关 | 省一趟 LLM；召回对短问可能变弱 |
+| 全文可缺省 | 少依赖；少一路召回 |
+| 空检索不调模型 | 省幻觉；用户看到的是固定文案 |
+
+## 刻意不做
+
+- 不重写 RRF / HyDE / 语义分块算法页  
+- 不做在线学习排序 / ColBERT / GraphRAG  
+- 不把教学 `POST /rag/ingest` 当成工业验收（那条仍同步、匿名）
+
+异步重建索引：见 [异步入库](./ingest-stream)。
+
+源码：[ai-example](https://github.com/Feike1993/ai-example) · production rag。

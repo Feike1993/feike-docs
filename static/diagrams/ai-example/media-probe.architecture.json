@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example 媒体探针",
+    "locale": "zh-CN",
+    "output": "media-probe.html",
+    "viewBox": [1080, 520],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "ruler", "label": "一把尺子", "focus": ["upload", "inspector", "probe"], "note": "mime / 体积 / SHA-256。" },
+      { "id": "nofs", "label": "不落盘", "focus": ["inspector", "chat", "history"], "note": "blob 不进库，历史写占位。" },
+      { "id": "speech", "label": "历史", "focus": ["chat", "history"], "note": "blob 不进库，历史写占位。" }
+    ]
+  },
+  "components": [
+    { "id": "upload", "type": "frontend", "label": "multipart", "sublabel": "image / document", "pos": [40, 220], "size": [150, 56] },
+    { "id": "inspector", "type": "security", "label": "MediaInspector", "sublabel": "不调模型", "pos": [270, 220], "size": [170, 56], "tag": "共用" },
+    { "id": "probe", "type": "backend", "label": "/media/probe", "sublabel": "mime / sha256", "pos": [540, 40], "size": [170, 56] },
+    { "id": "chat", "type": "backend", "label": "Chat / Agent", "sublabel": "本轮附件", "pos": [540, 380], "size": [170, 56] },
+    { "id": "history", "type": "database", "label": "会话历史", "sublabel": "[图片] / [文档]", "pos": [800, 380], "size": [170, 56] }
+  ],
+  "connections": [
+    { "id": "up-ins", "from": "upload", "to": "inspector", "label": "同一上限", "variant": "emphasis" },
+    { "id": "ins-probe", "from": "inspector", "to": "probe", "label": "无文件体", "variant": "emphasis" },
+    { "id": "ins-chat", "from": "inspector", "to": "chat", "label": "进管线", "variant": "emphasis" },
+    { "id": "chat-hist", "from": "chat", "to": "history", "label": "不写 blob", "variant": "security" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "共用尺子", "items": ["探针 / 问答 / 文档 / 转写", "避免三处各写上限", "超件 422 media_too_many"] },
+    { "dot": "rose", "title": "不落盘", "items": ["不进 pgvector", "审计只有 sha256", "扫描 OCR 位图即弃"] },
+    { "dot": "orange", "title": "语音附录", "items": ["不打开 OpenAI Audio 自动配置", "TTS 过输入护栏", "默认 E2E 不打 VL/ASR"] }
+  ]
+}

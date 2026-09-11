@@ -1,0 +1,114 @@
+---
+sidebar_position: 6
+title: Redis 失败取向
+description: 令牌桶、会话锁、幂等键 fail-open；SSE 事件日志与信封密钥 fail-closed；护栏是 422
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# Redis 失败取向
+
+工业链路共用一条 Redis，但**不能共用一种失败语义**。源码把「为什么和 SSE 相反」写在会话锁的类注释里；本页把它收成一张总图，避免每篇原理页重复同一段话。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="限流、锁、续传都进 Redis 之后，最容易写成「Redis 一挂全站 503」或反过来「全部 fail-open」。前者把优化变成可用性硬依赖，后者让对外承诺在故障时悄悄消失。"
+  rightTitle="目的"
+  right="按承诺分级：保护性优化挂了就放行；断线续传和 HMAC 解密钥挂了就 503。护栏与 Redis 无关，命中则 422，且不能被 prompt 关掉。"
+/>
+
+## 架构图
+
+左侧 `/api/v1` 连到三类依赖：桶 / 锁 / 幂等是 fail-open；SSE 事件日志与信封密钥是 fail-closed。
+
+<DiagramFrame
+  title="同一条 Redis，两种语义"
+  tool="archify"
+  description="优化路径放行；续传与 HMAC 承诺 503。">
+  <ArchifyEmbed
+    src="/diagrams/ai-example/redis-degrade.html"
+    title="Redis 失败取向"
+    height={560}
+  />
+</DiagramFrame>
+
+## 怎么选
+
+| 依赖 | Redis 挂了 | 原因 | 正确性落点 |
+| --- | --- | --- | --- |
+| 令牌桶 | 放行 | 限流是保护模型配额的优化 | 配额与账单在 Provider 侧 |
+| 会话锁 | 放行 | 为锁停掉问答不划算 | Postgres 主键与 turnId |
+| Idempotency-Key | 放行 | GET SSE 本就不走这里 | 客户端可重试；runId 续传 |
+| SSE 事件日志 | 503 | 续传是对外承诺 | 没有日志就没有回放 |
+| 信封 / HMAC | 503 | 解不开不能签发或校验 JWT | 密钥根本不可用 |
+| 输入输出护栏 | 422（与 Redis 无关） | 能被说服关掉的护栏等于没有 | 词表 + citation 校验 |
+
+`RateLimitExceededException` 必须原样抛出，不能被外层 `catch (RuntimeException)` 当成 Redis 故障吞掉后 fail-open。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>故障时行为可预期：优化消失或承诺失效，不会混成一种 503。</li>
+      <li>和源码注释一一对应，后续加 Redis 用法时有对照表可挂。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>fail-open 窗口会短暂失去限流和互斥体验。</li>
+      <li>调用方必须能区分 429 / 409 / 503，不能一律重试。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 给工业链路加新的 Redis 结构时，先问「这是优化还是承诺」。
+- 对照 [令牌桶](./redis-token-bucket)、[会话锁](./session-correctness)、[SSE 续传](./sse-resume)、[信封](./envelope-secret)。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: '令牌桶',
+      path: 'java/.../ratelimit/manager/RedisTokenBucket.java',
+      note: '通信异常 warn 后放行。',
+    },
+    {
+      node: '会话锁',
+      path: 'java/.../lock/manager/RedisSessionLock.java',
+      note: '类注释写明与事件日志相反。',
+    },
+    {
+      node: '幂等',
+      path: 'java/.../ratelimit/manager/IdempotencyManager.java',
+      note: 'fail-open；GET SSE 不走。',
+    },
+    {
+      node: '事件日志',
+      path: 'java/.../sse/dao/impl/RedisRunEventLogDAOImpl.java',
+      note: '不可用抛 503。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| 按承诺分级 | 实现者每次都要选边；不能抄「统一熔断」 |
+| 限流异常不得被吞 | 多一层 catch 纪律；否则 fail-open 会放掉真 429 |
+| 护栏独立于 Redis | 词表误报时仍 422，与基础设施健康无关 |
+
+## 刻意不做
+
+- 不把所有 Redis 调用包成同一种 CircuitBreaker 策略  
+- 不在故障时切换到进程内锁还对外声称「跨实例互斥仍然成立」
+
+源码：[ai-example](https://github.com/Feike1993/ai-example) · production Redis 用法对照。

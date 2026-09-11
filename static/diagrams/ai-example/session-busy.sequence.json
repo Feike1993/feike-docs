@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "ai-example 双实例会话锁",
+    "locale": "zh-CN",
+    "output": "session-busy.html",
+    "viewBox": [980, 680],
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "views": [
+      { "id": "hold", "label": "持锁", "focus": ["client", "javaA", "redis"], "note": "A 用 lock-probe 占锁。" },
+      { "id": "deny", "label": "互斥", "focus": ["client", "javaB", "redis"], "note": "B 同 sessionId 得到 409。" },
+      { "id": "id", "label": "辨认实例", "focus": ["javaA", "javaB"], "note": "两台 X-Instance-Id 不同。" }
+    ]
+  },
+  "participants": [
+    { "id": "client", "type": "external", "label": "客户端", "sublabel": "同一 sessionId" },
+    { "id": "javaA", "type": "backend", "label": "java-a", "sublabel": "X-Instance-Id" },
+    { "id": "javaB", "type": "backend", "label": "java-b", "sublabel": "另一实例" },
+    { "id": "redis", "type": "database", "label": "Redis", "sublabel": "SET NX" }
+  ],
+  "segments": [
+    { "from": 140, "to": 300, "label": "A 持锁" },
+    { "from": 320, "to": 500, "label": "B 冲突" },
+    { "from": 520, "to": 620, "label": "释放" }
+  ],
+  "messages": [
+    { "id": "probeA", "from": "client", "to": "javaA", "y": 175, "label": "lock-probe", "variant": "emphasis" },
+    { "id": "setnx", "from": "javaA", "to": "redis", "y": 220, "label": "SET NX token", "variant": "emphasis" },
+    { "id": "held", "from": "redis", "to": "javaA", "y": 265, "label": "OK", "variant": "return" },
+    { "id": "probeB", "from": "client", "to": "javaB", "y": 360, "label": "同 sessionId", "variant": "security" },
+    { "id": "miss", "from": "javaB", "to": "redis", "y": 405, "label": "SET NX", "variant": "security" },
+    { "id": "busy", "from": "javaB", "to": "client", "y": 450, "label": "409 session_busy", "variant": "security" },
+    { "id": "unlock", "from": "javaA", "to": "redis", "y": 560, "label": "Lua CAS DEL", "variant": "dashed" }
+  ],
+  "activations": [
+    { "participant": "javaA", "from": 170, "to": 280, "type": "backend" },
+    { "participant": "javaB", "from": 355, "to": 470, "type": "backend" },
+    { "participant": "redis", "from": 215, "to": 275, "type": "database" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "为何探针", "items": ["真 Chat 才走过检索才占锁", "护栏短路打不到 session_busy", "lock-probe 不打 LLM"] },
+    { "dot": "rose", "title": "CAS 解锁", "items": ["超时后锁可能易主", "裸 DEL 会删掉别人的锁", "比对 token 失败则无操作"] },
+    { "dot": "orange", "title": "本图不证", "items": ["正确性仍看 PG 主键", "锁挂了 fail-open", "验收脚本见源码仓"] }
+  ]
+}

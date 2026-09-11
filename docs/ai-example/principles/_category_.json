@@ -1,9 +1,9 @@
 {
-  "label": "底层原理",
+  "label": "基础教学",
   "position": 2,
   "collapsed": false,
   "link": {
     "type": "generated-index",
-    "description": "ai-example 核心原理页：Archify 架构图 + 源码落点 + 设计取舍。"
+    "description": "教学场 Playground / samples：Archify 架构图 + 源码落点 + 设计取舍。工业级 /api/v1 见同级「生产实践」。"
   }
 }

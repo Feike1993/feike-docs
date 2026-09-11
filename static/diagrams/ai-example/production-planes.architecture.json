@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example 教学 / 工业双平面",
+    "locale": "zh-CN",
+    "output": "production-planes.html",
+    "viewBox": [1080, 560],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "teach", "label": "教学场", "focus": ["playground", "sampleApi", "samples"], "note": "匿名样例路径，点开即跑。" },
+      { "id": "prod", "label": "工业级", "focus": ["industrial", "apiV1", "production"], "note": "开关武装 /api/v1，JWT 进门。" },
+      { "id": "store", "label": "存储分工", "focus": ["production", "postgres", "redis"], "note": "Postgres 正确性；Redis 锁、限流、SSE、入库。" }
+    ]
+  },
+  "components": [
+    { "id": "playground", "type": "frontend", "label": "Playground", "sublabel": "/", "pos": [40, 80], "size": [140, 56] },
+    { "id": "sampleApi", "type": "backend", "label": "Sample API", "sublabel": "/chat /rag", "pos": [260, 80], "size": [150, 56], "tag": "匿名" },
+    { "id": "samples", "type": "backend", "label": "samples/", "sublabel": "教学编排", "pos": [500, 80], "size": [140, 56] },
+    { "id": "industrial", "type": "frontend", "label": "industrial.html", "sublabel": "工业页", "pos": [40, 320], "size": [140, 56] },
+    { "id": "apiV1", "type": "security", "label": "/api/v1", "sublabel": "JWT 武装", "pos": [260, 320], "size": [150, 56], "tag": "开关" },
+    { "id": "production", "type": "backend", "label": "production/", "sublabel": "工业编排", "pos": [500, 320], "size": [140, 56] },
+    { "id": "postgres", "type": "database", "label": "Postgres", "sublabel": "会话 / 信封", "pos": [760, 80], "size": [140, 56] },
+    { "id": "redis", "type": "database", "label": "Redis", "sublabel": "锁 / SSE / 桶", "pos": [760, 320], "size": [140, 56] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "教学场", "wraps": ["playground", "sampleApi", "samples"] },
+    { "kind": "security-group", "label": "工业级", "wraps": ["industrial", "apiV1", "production"] }
+  ],
+  "connections": [
+    { "id": "pg-api", "from": "playground", "to": "sampleApi", "label": "HTTP / SSE", "variant": "emphasis" },
+    { "id": "api-samples", "from": "sampleApi", "to": "samples", "label": "编排", "variant": "emphasis" },
+    { "id": "ind-v1", "from": "industrial", "to": "apiV1", "label": "Bearer", "variant": "security" },
+    { "id": "v1-prod", "from": "apiV1", "to": "production", "label": "显式 Principal", "variant": "emphasis" },
+    { "id": "prod-pg", "from": "production", "to": "postgres", "label": "原子轮次", "fromSide": "top", "toSide": "left" },
+    { "id": "prod-redis", "from": "production", "to": "redis", "label": "锁与事件", "variant": "emphasis" },
+    { "id": "samples-pg", "from": "samples", "to": "postgres", "label": "教学会话", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "路径不重叠", "items": ["样例保持匿名可点", "/api/v1 必须显式开开关", "关则零 Bean"] },
+    { "dot": "emerald", "title": "存储分工", "items": ["正确性在 Postgres", "Redis 做跨实例优化", "挂了进程仍能起"] },
+    { "dot": "orange", "title": "Flyway", "items": ["V2 工业会话", "V3 信封与审计", "V4 Agent 审计列"] }
+  ]
+}

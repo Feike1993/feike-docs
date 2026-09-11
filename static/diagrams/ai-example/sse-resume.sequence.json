@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "ai-example SSE 跨实例续传",
+    "locale": "zh-CN",
+    "output": "sse-resume.html",
+    "viewBox": [980, 680],
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "views": [
+      { "id": "write", "label": "写入", "focus": ["javaA", "stream"], "note": "A 把事件写入 Redis Stream。" },
+      { "id": "replay", "label": "回放", "focus": ["client", "javaB", "stream"], "note": "B 用 Last-Event-ID 做 XRANGE。" },
+      { "id": "id", "label": "显式 id", "focus": ["stream"], "note": "entry id 固定 1-<seq>。" }
+    ]
+  },
+  "participants": [
+    { "id": "client", "type": "external", "label": "客户端", "sublabel": "Last-Event-ID" },
+    { "id": "javaA", "type": "backend", "label": "java-a", "sublabel": "写 run" },
+    { "id": "stream", "type": "database", "label": "Redis Stream", "sublabel": "1-<seq>" },
+    { "id": "javaB", "type": "backend", "label": "java-b", "sublabel": "回放" }
+  ],
+  "segments": [
+    { "from": 140, "to": 300, "label": "A 写入" },
+    { "from": 320, "to": 500, "label": "断线" },
+    { "from": 510, "to": 620, "label": "B 续传" }
+  ],
+  "messages": [
+    { "id": "start", "from": "client", "to": "javaA", "y": 175, "label": "GET stream / sse-probe", "variant": "emphasis" },
+    { "id": "xadd", "from": "javaA", "to": "stream", "y": 220, "label": "XADD 1-<seq>", "variant": "emphasis" },
+    { "id": "push", "from": "javaA", "to": "client", "y": 265, "label": "SSE 事件", "variant": "return" },
+    { "id": "drop", "from": "client", "to": "javaA", "y": 360, "label": "连接断开", "variant": "dashed" },
+    { "id": "resume", "from": "client", "to": "javaB", "y": 530, "label": "Last-Event-ID", "variant": "emphasis" },
+    { "id": "xrange", "from": "javaB", "to": "stream", "y": 565, "label": "XRANGE 之后", "variant": "emphasis" },
+    { "id": "replay", "from": "javaB", "to": "client", "y": 595, "label": "补齐事件", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "javaA", "from": 170, "to": 280, "type": "backend" },
+    { "participant": "javaB", "from": 525, "to": 600, "type": "backend" },
+    { "participant": "stream", "from": 215, "to": 230, "type": "database" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "为何 Stream", "items": ["显式 id 可区间查询", "不必把整条流拉回 JVM", "状态另存 Hash"] },
+    { "dot": "rose", "title": "fail-closed", "items": ["Redis 挂了报 503", "续传是对外承诺", "静默降级更难查"] },
+    { "dot": "orange", "title": "租户", "items": ["续传校验创建者租户", "跨租户 404", "过期窗口后 run_gone"] }
+  ]
+}

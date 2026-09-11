@@ -1,0 +1,131 @@
+---
+sidebar_position: 14
+title: 双实例 HA
+description: java-a / java-b 共享 Redis 与信封；X-Instance-Id；lock-probe / sse-probe 为何存在；不要用 Vite 验收
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# 双实例 HA
+
+对应 Compose 的 `java-a` / `java-b` 与 `InstanceIdFilter`。锁和 SSE 续传从第一天就是为跨进程设计的；第六阶段只是把第二份 Java 立起来，证明它们不是单机幻想。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="只跑一份 bootRun 时，会话锁和 Last-Event-ID 看起来「也能用」，却验证不了跨进程。输入护栏在 tryAcquire 之前返回，默认套件打真实 Chat 又会绑 LLM，所以普通 E2E 永远碰不到 session_busy。Vite 没有双实例反代，用它验收 HA 会得到假阴性。"
+  rightTitle="目的"
+  right="两台共用镜像、Redis、Postgres。响应头 X-Instance-Id 可辨身份。用 lock-probe / sse-probe 在不打 LLM 的前提下证明互斥与回放。Nginx least_conn，不要绑死一台。"
+/>
+
+## 架构图
+
+浏览器进 Nginx `:8088`，两台 Java 共用 Redis（锁 / Stream）和 Postgres（会话 / 信封 HMAC）。health 不在 `/api/v1` 下，**没有**实例头。
+
+<DiagramFrame
+  title="两份 Java，一份共享状态"
+  tool="archify"
+  description="Nginx least_conn 到 java-a / java-b；锁与信封跨进程。">
+  <ArchifyEmbed
+    src="/diagrams/ai-example/industrial-ha.html"
+    title="双实例 HA"
+    height={600}
+  />
+</DiagramFrame>
+
+互斥与回放的时序已经画在 [会话锁](./session-correctness) 和 [SSE 续传](./sse-resume)，本页不重复那两张 sequence。
+
+## 要证明什么
+
+| 项 | 通过标准 |
+| --- | --- |
+| 双进程 | Compose 同时有 java-a、java-b |
+| 身份可辨 | `/api/v1/**` 带 `X-Instance-Id` |
+| 会话锁 | 同一 sessionId：A 持锁打 B → 409 `session_busy`，且两台实例头不同 |
+| SSE 续传 | A 写 sse-probe，B 用 `Last-Event-ID` 回放到含探针事件 |
+| Nginx | `:8088` least_conn，不要绑死一台 |
+
+## 流程步骤
+
+1. **探针代替真 Chat**  
+   护栏短路打不到锁；真占锁必须走过检索/生成。`lock-probe` 只占 Redis；`sse-probe` 只写假事件。这是测试设计，不是偷懒。
+
+2. **JWT 跨实例**  
+   HMAC 在 Postgres 信封里，两台读同一把钥匙。A 换的令牌 B 认。
+
+3. **不要用 Vite 验 HA**  
+   `pnpm dev` 没有双实例反代。整栈入口是 Nginx。对照脚本直打两台 Java 的映射端口。
+
+4. **配置配对**  
+   `PRODUCTION_SESSION_LOCK=memory` 或 `PRODUCTION_EVENT_LOG=memory` 时，跨实例演示无意义。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>把「跨进程」从注释变成可重复的对照。</li>
+      <li>探针让 HA 验收不绑 LLM 账单。</li>
+      <li>实例头让 least_conn 是否真的打到两台变得可观察。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>探针覆盖的是 Redis 契约，不是完整 Chat 在 HA 下的尾延迟。</li>
+      <li>本机端口与 bootRun 冲突时要改映射，文档比单实例啰嗦。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 要向评审证明锁和续传不是单进程 Map。
+- 排查「刷新后 SSE 没了」时先看是不是打到了另一台、以及事件日志是不是 Redis。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: '实例头',
+      path: 'java/.../web/InstanceIdFilter.java',
+      note: 'X-Instance-Id。',
+    },
+    {
+      node: '短名',
+      path: 'java/.../config/ProductionInstanceIdentity.java',
+      note: 'java-a / java-b。',
+    },
+    {
+      node: '一键脚本',
+      path: 'scripts/industrial-ha.sh',
+      note: '锁探针 + SSE 回放。',
+    },
+    {
+      node: '验收手册',
+      path: 'docs/industrial-ha.md',
+      note: '源码仓 curl 逐步；本页不复制。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| 探针不打 LLM | HA 可进日常；不证明真实 TTFT |
+| 实例头只打 /api/v1 | health 保持干净；看头必须走工业路径 |
+| 手册留在源码仓 | feike-docs 讲 why；命令以源码仓为准 |
+
+## 刻意不做
+
+- 不在本页粘贴可过期的 curl 长脚本  
+- 不做三机房 / 自动故障转移产品  
+- 不把 Vite preview 当成 HA 入口
+
+逐步命令与端口映射：源码仓 [industrial-ha.md](https://github.com/Feike1993/ai-example/blob/main/docs/industrial-ha.md)。
+
+源码：[ai-example](https://github.com/Feike1993/ai-example) · java-a / java-b。

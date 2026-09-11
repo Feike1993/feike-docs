@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "ai-example 生产 SSE run",
+    "locale": "zh-CN",
+    "output": "sse-contract.html",
+    "viewBox": [980, 660],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "main", "label": "主路径", "focus": ["start", "emit", "persist", "done"], "note": "meta→sources→delta*→usage→done。" },
+      { "id": "resume", "label": "断流", "focus": ["emit", "disconnect", "done"], "note": "写出失败仍记日志，可回放。" },
+      { "id": "fail", "label": "失败", "focus": ["watchdog", "redisDown", "done"], "note": "看门狗先发 error；Redis 挂了 503。" }
+    ]
+  },
+  "lanes": [
+    { "id": "main", "label": "run 主路径" },
+    { "id": "waiting", "label": "断流等待" },
+    { "id": "exceptions", "label": "可恢复 / 硬失败" },
+    { "id": "terminal", "label": "终态" }
+  ],
+  "states": [
+    { "id": "start", "type": "start", "label": "建 run", "sublabel": "emitter", "lane": "main", "col": 0, "step": "01", "tag": "entry" },
+    { "id": "emit", "type": "active", "label": "写事件", "sublabel": "单调 seq", "lane": "main", "col": 1, "step": "02", "tag": "log" },
+    { "id": "persist", "type": "decision", "label": "是否落库", "sublabel": "仅 done", "lane": "main", "col": 2, "step": "03", "tag": "db" },
+    { "id": "done", "type": "success", "label": "终态", "sublabel": "恰好一条", "lane": "main", "col": 4, "step": "04", "tag": "done" },
+    { "id": "disconnect", "type": "waiting", "label": "客户端断开", "sublabel": "日志仍写", "lane": "waiting", "col": 0, "tag": "resume" },
+    { "id": "watchdog", "type": "failure", "label": "看门狗", "sublabel": "先发 error", "lane": "exceptions", "col": 0, "yOffset": 78, "tag": "timeout" },
+    { "id": "redisDown", "type": "failure", "label": "事件日志 503", "sublabel": "fail-closed", "lane": "terminal", "col": 0, "tag": "redis" }
+  ],
+  "transitions": [
+    { "id": "emit-disc", "from": "emit", "to": "disconnect", "variant": "dashed", "route": "drop" },
+    { "id": "disc-emit", "from": "disconnect", "to": "emit", "variant": "emphasis", "fromSide": "left", "toSide": "bottom" },
+    { "id": "emit-wd", "from": "emit", "to": "watchdog", "variant": "security", "fromSide": "left", "toSide": "left", "via": [[320, 157], [320, 385]] },
+    { "id": "start-redis", "from": "start", "to": "redisDown", "variant": "security", "fromSide": "bottom", "toSide": "left" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "契约", "items": ["seq 单调可发现缺口", "终态唯一且必须最后", "断流不等于失败"] },
+    { "dot": "orange", "title": "落库", "items": ["取消/报错不写历史", "落库失败仍 done", "persisted:false"] },
+    { "dot": "rose", "title": "超时", "items": ["不用容器默默断连", "看门狗先发 error", "emitter 超时只作兜底"] }
+  ]
+}

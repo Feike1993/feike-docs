@@ -8,7 +8,7 @@ description: Grafana k6 是什么、何时选用，以及如何用 ai-example �
 
 [Grafana k6](https://grafana.com/docs/k6/latest/) 是用 JavaScript 写场景、用 Go 跑引擎的**协议级负载测试**工具。脚本进 Git，结果用阈值判定通过或失败。官网文档：[k6 docs](https://grafana.com/docs/k6/latest/)；源码：[grafana/k6](https://github.com/grafana/k6)。
 
-它测的是 HTTP / WebSocket / gRPC 这类接口行为，不是浏览器里点按钮。和 [ai-example](https://github.com/Feike1993/ai-example) 的分工是：Playwright 负责工业级页面 E2E，k6 负责打 Java 的 `/api/v1`。
+它测的是 HTTP / WebSocket / gRPC 这类接口行为，不是浏览器里点按钮。和 [ai-example](https://github.com/Feike1993/ai-example) 的分工是：[Playwright 工业 E2E](/docs/tech-stack/e2e/playwright) 负责工业页点击与无模型探针，k6 负责打 Java 的 `/api/v1`。
 
 ## 什么时候选 k6
 
@@ -60,7 +60,7 @@ flowchart TD
 
 ## ai-example 怎么跑
 
-对应仓库 [loadtest/](https://github.com/Feike1993/ai-example/tree/main/loadtest)，打的是本机 Java **`http://127.0.0.1:8080/ai-example/api/v1`**，不经过 Vite，也不走 Compose 前端的 8088。限流原理见 [Redis 令牌桶](/docs/ai-example/principles/production/redis-token-bucket)。
+对应仓库 [loadtest/](https://github.com/Feike1993/ai-example/tree/main/loadtest)，打的是本机 Java **`http://127.0.0.1:8080/ai-example/api/v1`**，不经过 Vite，也不走 Compose 前端的 8088。限流原理见 [Redis 令牌桶](/docs/ai-example/production/redis-token-bucket)。
 
 ### 前置
 

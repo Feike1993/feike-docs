@@ -1,0 +1,126 @@
+---
+sidebar_position: 0
+title: 教学 / 工业双平面
+description: Playground 与 industrial.html 分平面；开关武装 /api/v1；Redis 只服务工业链路；Archify 对照源码
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# 教学 / 工业双平面
+
+对应生产路径 `com.feike.ai.production`。教学场保持「点开即跑」，工业级走另一条必须显式打开的入口，两条 HTTP 路径互不重叠。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="课程样例如果一上来就 JWT、限流、信封密钥，第一次点击会被挡住。但真正能上线的问答又不能继续匿名、单进程、密钥写在 .env。"
+  rightTitle="目的"
+  right="用 app.production.enabled 整块开关：关掉则一个工业 Bean 都没有；打开后只武装 /api/v1，教学 /chat、/rag 仍匿名。Redis 挂了进程能起，工业接口再 503。"
+/>
+
+## 架构图
+
+下图把两个入口画在一张图里：上沿是 Playground 与 `samples/`，下沿是 `industrial.html` 与 `production/`。Postgres 两边都会用到，Redis 主要服务工业链路。
+
+<DiagramFrame
+  title="教学场与工业级"
+  tool="archify"
+  description="Playground → Sample API → samples/；industrial.html → JWT 武装的 /api/v1 → production/；共享 Postgres，Redis 给锁、SSE、令牌桶。">
+  <ArchifyEmbed
+    src="/diagrams/ai-example/production-planes.html"
+    title="教学 / 工业双平面"
+    height={640}
+  />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **路径分开**  
+   样例继续挂在 `/chat`、`/rag`、`/agent` 等。工业入口统一 `/api/v1/**`，由 [`ProductionChatController`](https://github.com/Feike1993/ai-example) 一类控制器承接。前端教学场是 `/`，工业页是 `/industrial.html`。
+
+2. **开关关则零 Bean**  
+   [`ProductionConfiguration`](https://github.com/Feike1993/ai-example) 按 `app.production.enabled` 装配。服务层用 `@Bean` 显式声明而不是满世界 `@Component`：关掉时不必去翻十几个条件注解。控制器是例外——Spring MVC 只给 `@Controller` 建路由，所以控制器自己带同一开关。
+
+3. **启动失败 vs 请求失败**  
+   缺 `PRODUCTION_KEK` 或 Redis 暂时不可用时，进程仍应起来（教学样例还能点）。`/api/v1` 在密钥不可用时返回 503，而不是让整个 Spring Boot 起不来。
+
+4. **表结构按工业增量走 Flyway**  
+   `V2` 工业会话，`V3` 信封密文与审计，`V4` Agent 审计列。教学会话表仍由更早的脚本接管，不要把两套会话写进同一张表。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>课程点击路径不被鉴权挡住。</li>
+      <li>现有部署升级上来时不会凭空多一组开放接口。</li>
+      <li>工业能力的失败落在 /api/v1，不拖垮主进程。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>两套入口、两套会话语义，文档必须写清对照。</li>
+      <li>开关与 RAG 自动配置的求值时序不能用 @ConditionalOnBean(VectorStore) 去赌。</li>
+      <li>本仓工业级仍是演示形态，不是业务知识库产品。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 同一仓库同时承载 cookbook 与「能讲清楚生产取舍」的 `/api/v1`。
+- 要把鉴权、多实例、密钥信封从样例里拆出去，又想保留一键可跑的教学 Tab。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: '装配入口',
+      path: 'java/.../config/ProductionConfiguration.java',
+      note: 'enabled 开关；@Bean 显式声明，关掉则零 Bean。',
+    },
+    {
+      node: '配置项',
+      path: 'java/.../config/ProductionProperties.java',
+      note: '锁、流、限流、护栏、媒体上限。',
+    },
+    {
+      node: 'HTTP 入口',
+      path: 'java/.../chat/controller/ProductionChatController.java',
+      note: '挂在 /api/v1，与样例路径不重叠。',
+    },
+    {
+      node: '工业页',
+      path: 'frontend/industrial.html',
+      note: '独立入口，不复用 Playground Tab。',
+    },
+    {
+      node: 'Flyway',
+      path: 'java/src/main/resources/db/migration/',
+      note: 'V2 会话、V3 信封与审计、V4 Agent 审计。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| 显式开关默认关 | 升级不会突然暴露 /api/v1；要用必须写 enabled=true |
+| 服务用 @Bean 不用扫描 | 「关掉就没有」在一个文件里看得见 |
+| Redis 不挡启动 | 教学仍可跑；工业接口在请求期 503 |
+| 不把教学路径锁上 | 课程优先；身份只存在工业平面 |
+
+## 刻意不做
+
+- 不把教学样例改成必须登录  
+- 不做知识库上传后台 / 多租户产品面  
+- 不把装配开关拆成一篇独立水文（已写在本页）
+
+同一条 Redis 上的 fail-open / fail-closed 对照见 [Redis 失败取向](./redis-degrade)。限流算法见 [Redis 令牌桶](./redis-token-bucket)。
+
+源码：[ai-example](https://github.com/Feike1993/ai-example) · production 装配。

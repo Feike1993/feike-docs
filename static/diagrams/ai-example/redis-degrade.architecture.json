@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example Redis 失败取向",
+    "locale": "zh-CN",
+    "output": "redis-degrade.html",
+    "viewBox": [980, 480],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "open", "label": "fail-open", "focus": ["app", "open"], "note": "挂了放行，正确性另有落点。" },
+      { "id": "closed", "label": "fail-closed", "focus": ["app", "events", "secrets"], "note": "挂了 503，因为是对外承诺。" },
+      { "id": "why", "label": "对照", "focus": ["open", "events"], "note": "同一条 Redis，两种语义。" }
+    ]
+  },
+  "components": [
+    { "id": "app", "type": "backend", "label": "/api/v1", "sublabel": "工业入口", "pos": [40, 180], "size": [130, 56] },
+    { "id": "open", "type": "backend", "label": "桶 / 锁 / 幂等", "sublabel": "fail-open", "pos": [280, 180], "size": [170, 56], "tag": "放行" },
+    { "id": "events", "type": "messagebus", "label": "SSE 事件日志", "sublabel": "fail-closed", "pos": [560, 60], "size": [180, 56], "tag": "503" },
+    { "id": "secrets", "type": "security", "label": "信封密钥", "sublabel": "fail-closed", "pos": [560, 300], "size": [180, 56], "tag": "503" }
+  ],
+  "connections": [
+    { "id": "app-open", "from": "app", "to": "open", "label": "优化路径", "variant": "emphasis" },
+    { "id": "app-events", "from": "app", "to": "events", "label": "续传承诺", "variant": "security" },
+    { "id": "app-secrets", "from": "app", "to": "secrets", "label": "HMAC", "variant": "security" }
+  ],
+  "cards": [
+    { "dot": "orange", "title": "何时放行", "items": ["限流是保护性优化", "锁的正确性在 PG", "幂等挂了宁可重复"] },
+    { "dot": "rose", "title": "何时 503", "items": ["断线续传不能假装还有", "HMAC 解不开不能发 JWT", "静默降级更难排障"] },
+    { "dot": "cyan", "title": "护栏另一类", "items": ["输入输出词表是 422", "与 Redis 无关", "不能被 prompt 关掉"] }
+  ]
+}

@@ -1,0 +1,123 @@
+---
+sidebar_position: 9
+title: 生产 Agent 工具策略
+description: 被拒工具不进 schema；tool-probe 不调模型；审计只记工具名与 denied
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# 生产 Agent 工具策略
+
+对应生产路径 `com.feike.ai.production.agent`。教学 [ReAct](../principles/react-agent) 已经把 Loop 讲清。生产 Agent 多出来的工业点是：**模型根本不该看见它调不了的工具**，以及默认测试不许打真循环。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="把全量工具 schema 交给模型、执行时再 403，模型几乎一定会去调那个工具，然后失败、重试、污染轨迹。默认 E2E 若打 /agent/stream，就会绑 Chat LLM，又贵又不稳。"
+  rightTitle="目的"
+  right="ToolPolicy 按角色过滤后再挂 schema。GET /agent/tools 可查询；POST /agent/tool-probe 不调模型、不真执行。审计记 toolName 与 denied，不问句原文。"
+/>
+
+## 架构图
+
+上沿是「看见之前」：Policy → Schema → ChatModel。下沿是无 LLM 探针和审计。alice 没有 `rebuild_index`，admin 有；admin 探针也不会真的重建语料。
+
+<DiagramFrame
+  title="拒绝发生在看见之前"
+  tool="archify"
+  description="按角色裁剪 schema；探针只问允许否；审计不落问题原文。">
+  <ArchifyEmbed
+    src="/diagrams/ai-example/agent-tool-policy.html"
+    title="生产 Agent 工具策略"
+    height={600}
+  />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **角色 → 允许集合**  
+   USER：`search_kb` / `add` / `get_weather`。ADMIN 额外 `rebuild_index`。集合在发 schema 前算完。
+
+2. **闭包里仍带 Principal**  
+   即使模型胡乱点名，执行入口再查一次 `ToolPolicy.allows`。第一道过滤减少胡点；第二道防止漏网。
+
+3. **探针**  
+   `POST /agent/tool-probe` 走同一套策略，不创建 run、不调模型。alice 探针 `rebuild_index` → `denied:true`。这是默认 Playwright 能覆盖策略的原因。
+
+4. **审计**  
+   `action=agent.tool`，字段是工具名和是否拒绝。问题原文只存 sha256（见 [可观测与审计](./ops-audit)）。
+
+5. **与问答共用锁和落库**  
+   多出来的是 `step` 事件。Loop 本身不在本页展开。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>模型不会把力气花在注定失败的 tool_call 上。</li>
+      <li>无 Key 也能测权限矩阵。</li>
+      <li>审计可演示「拒绝了哪把工具」而不泄露问句。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>工具清单是演示用硬编码，不是通用权限产品。</li>
+      <li>默认套件覆盖不到真 Loop，回归真 Agent 仍要本机选跑。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 生产 Agent 要把危险工具（重建索引）从 USER schema 里拿掉。
+- CI 要证明策略，但不能调用 Chat。
+- 对照教学 ReAct：那里没有按角色裁剪。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: '策略',
+      path: 'java/.../agent/manager/ToolPolicy.java',
+      note: '被拒工具不进 schema。',
+    },
+    {
+      node: '工具',
+      path: 'java/.../agent/manager/ProductionTools.java',
+      note: '按请求挂允许的 @Tool。',
+    },
+    {
+      node: '编排',
+      path: 'java/.../agent/service/impl/ProductionAgentServiceImpl.java',
+      note: '与问答共用锁；多 step 事件。',
+    },
+    {
+      node: '探针 HTTP',
+      path: 'java/.../chat/controller/ProductionChatController.java',
+      note: 'GET /agent/tools；POST /agent/tool-probe。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| 过滤发生在 schema 前 | 模型更老实；改角色必须同时改清单 |
+| 探针不执行 | CI 便宜；真副作用仍要人工 / @keys |
+| 不问句原文 | 隐私更好；出了问题要对着 sha256 查 |
+
+## 刻意不做
+
+- 不重写 ReAct Loop 算法  
+- 不把有副作用的真实外部工具接到演示集  
+- 默认 E2E 不打 `/agent/stream`
+
+看图时为何不能把 VL 挂进工具循环：见 [Agent 看图](./agent-vl)。
+
+源码：[ai-example](https://github.com/Feike1993/ai-example) · production agent。

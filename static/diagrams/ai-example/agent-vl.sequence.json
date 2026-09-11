@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "ai-example Agent 先转写再工具",
+    "locale": "zh-CN",
+    "output": "agent-vl.html",
+    "viewBox": [980, 720],
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "views": [
+      { "id": "vl", "label": "只转写", "focus": ["agent", "vl"], "note": "视觉模型不调工具、不作答。" },
+      { "id": "text", "label": "文本循环", "focus": ["agent", "chat", "tools"], "note": "转写正文进首条 UserMessage。" },
+      { "id": "why", "label": "约束", "focus": ["vl", "chat"], "note": "qwen-vl-plus 无 Function Calling。" }
+    ]
+  },
+  "participants": [
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "multipart" },
+    { "id": "agent", "type": "backend", "label": "生产 Agent", "sublabel": "编排" },
+    { "id": "vl", "type": "cloud", "label": "VL", "sublabel": "qwen-vl-plus" },
+    { "id": "chat", "type": "cloud", "label": "文本 Chat", "sublabel": "工具循环" },
+    { "id": "tools", "type": "backend", "label": "Tools", "sublabel": "search_kb 等" }
+  ],
+  "segments": [
+    { "from": 140, "to": 300, "label": "转写" },
+    { "from": 320, "to": 560, "label": "文本 ReAct" }
+  ],
+  "messages": [
+    { "id": "post", "from": "user", "to": "agent", "y": 175, "label": "POST /agent/stream + image", "variant": "emphasis" },
+    { "id": "desc", "from": "agent", "to": "vl", "y": 220, "label": "只简述画面", "variant": "emphasis" },
+    { "id": "text", "from": "vl", "to": "agent", "y": 265, "label": "转写正文", "variant": "return" },
+    { "id": "ask", "from": "agent", "to": "chat", "y": 360, "label": "纯文本 UserMessage", "variant": "emphasis" },
+    { "id": "call", "from": "chat", "to": "tools", "y": 430, "label": "tool_call", "variant": "emphasis" },
+    { "id": "obs", "from": "tools", "to": "chat", "y": 475, "label": "tool_result", "variant": "return" },
+    { "id": "final", "from": "agent", "to": "user", "y": 540, "label": "终答 SSE", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "agent", "from": 170, "to": 560, "type": "backend" },
+    { "participant": "vl", "from": 215, "to": 275, "type": "cloud" },
+    { "participant": "chat", "from": 355, "to": 490, "type": "cloud" }
+  ],
+  "cards": [
+    { "dot": "rose", "title": "为何拆开", "items": ["默认 VL 不支持 Function Calling", "文本循环已在 DeepSeek", "识图不把 DeepSeek 当 VL"] },
+    { "dot": "cyan", "title": "落库", "items": ["历史仍是 [图片] 占位", "不写转写正文", "UserMessage 无 Media"] },
+    { "dot": "orange", "title": "仅文档", "items": ["抽出正文进用户文本", "不调 VL", "超件 422 不进循环"] }
+  ]
+}

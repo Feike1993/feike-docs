@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example 会话锁与原子轮次",
+    "locale": "zh-CN",
+    "output": "session-correctness.html",
+    "viewBox": [1080, 540],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "ux", "label": "软锁", "focus": ["chat", "lock", "busy"], "note": "锁只避免双写体验差。" },
+      { "id": "db", "label": "正确性", "focus": ["chat", "dao", "pk"], "note": "复合主键与 turnId 才是真相。" },
+      { "id": "open", "label": "fail-open", "focus": ["lock", "chat", "dao"], "note": "锁 Redis 挂了仍放行。" }
+    ]
+  },
+  "components": [
+    { "id": "chat", "type": "backend", "label": "Chat / Agent", "sublabel": "编排", "pos": [40, 200], "size": [150, 56] },
+    { "id": "lock", "type": "database", "label": "Redis 会话锁", "sublabel": "SET NX + Lua CAS", "pos": [280, 80], "size": [180, 56], "tag": "UX" },
+    { "id": "busy", "type": "security", "label": "409 session_busy", "sublabel": "同会话已有一轮", "pos": [540, 80], "size": [180, 56] },
+    { "id": "dao", "type": "backend", "label": "Session DAO", "sublabel": "同事务 user+assistant", "pos": [280, 320], "size": [180, 56] },
+    { "id": "pk", "type": "database", "label": "Postgres PK", "sublabel": "(session_id, seq)", "pos": [540, 320], "size": [180, 56], "tag": "正确性" },
+    { "id": "open", "type": "external", "label": "Redis 挂了", "sublabel": "锁 fail-open", "pos": [800, 80], "size": [150, 56] }
+  ],
+  "connections": [
+    { "id": "chat-lock", "from": "chat", "to": "lock", "label": "tryAcquire", "variant": "emphasis" },
+    { "id": "lock-busy", "from": "lock", "to": "busy", "label": "未拿到", "variant": "security" },
+    { "id": "chat-dao", "from": "chat", "to": "dao", "label": "仅 done 落库", "variant": "emphasis" },
+    { "id": "dao-pk", "from": "dao", "to": "pk", "label": "主键兜底", "variant": "emphasis", "labelDy": 24 },
+    { "id": "lock-open", "from": "lock", "to": "open", "label": "fail-open", "variant": "dashed", "fromSide": "top", "toSide": "top", "via": [[370, 36], [875, 36]] }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "相对教学版", "items": ["整轮原子，无孤儿 user", "MAX+INSERT 竞态由 PK 兜底", "无 replace()，只追加"] },
+    { "dot": "orange", "title": "锁的边界", "items": ["TTL 防进程被 kill", "解锁必须比对 token", "禁止裸 DEL"] },
+    { "dot": "cyan", "title": "失败取向", "items": ["锁是优化，挂了放行", "与 SSE 日志 fail-closed 相反", "错租户 404"] }
+  ]
+}

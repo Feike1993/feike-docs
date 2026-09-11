@@ -1,0 +1,121 @@
+---
+sidebar_position: 13
+title: 可观测与审计
+description: 浏览器不刮 Prometheus；ops/snapshot 只读安全子集；审计存 sha256；时间线跨租户 404
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# 可观测与审计
+
+对应生产路径 `com.feike.ai.production.observability` 与 `audit`。教学 [TokenUsage](../principles/observability/token-usage) 解决「这一轮花了多少 token」。工业页还要解决：浏览器不能拿着用户 JWT 去刮 Prometheus，审计也不能把问句原文堆在表里。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="把 /actuator/prometheus 暴露给工业页，等于把内部指标面交给浏览器。审计若写问题原文，演示违禁词和用户隐私会进备份。run 时间线若对错租户回 410，等于承认「这个 runId 曾经存在」。"
+  rightTitle="目的"
+  right="浏览器只打 /api/v1/ops/snapshot 读安全子集。Prometheus 要独立 PRODUCTION_METRICS_TOKEN。审计 questionSha256，失败不改变业务响应。时间线跨租户与过期一律 404。"
+/>
+
+## 架构图
+
+上沿是工业页 JWT → snapshot → 指标 → 审计表。下沿是带独立 Bearer 的 Prometheus 刮取和 Grafana。时间线从事件日志抽出步骤，不让浏览器直连 actuator。
+
+<DiagramFrame
+  title="浏览器只读子集"
+  tool="archify"
+  description="snapshot 走 JWT；刮取走 metrics token；审计不落原文。">
+  <ArchifyEmbed
+    src="/diagrams/ai-example/ops-audit.html"
+    title="可观测与审计"
+    height={620}
+  />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **快照**  
+   `GET /ops/snapshot` 返回问答次数、空检索、护栏、工具拒绝、入库任务等 `prod_*` 计数。匿名打 `/actuator/prometheus` **不是** 200。
+
+2. **刮取**  
+   Compose 里 Prometheus 的 Bearer 必须与 `PRODUCTION_METRICS_TOKEN` 一致。改 token 要两边一起改。云托管 Grafana 本仓不做。
+
+3. **审计**  
+   登录、工具探针、媒体探针都会落 `prod_audit_log`。问题只存 sha256。写入在虚拟线程里，失败只打日志，**绝不改变**业务响应——审计挂了不能让问答 500。
+
+4. **时间线**  
+   `GET /ops/runs/{runId}` 从 SSE 事件日志抽 step。过期、不存在、别人租户都是 `run_not_found` 404。真 Agent 本机选跑后，可观测面板才能加载与直播一致的步骤。
+
+5. **压测摘要**  
+   没跑过 k6 时 `GET /ops/loadtest` 404。跑完 `./loadtest/run.sh smoke` 后工业页能看到 reqs / p95。见 [Grafana k6](/docs/tech-stack/loadtest/k6)。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>演示页不必暴露内部刮取面。</li>
+      <li>审计失败与主链路解耦。</li>
+      <li>时间线 404 策略与会话错租户一致。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>snapshot 是子集，深度排查仍要日志 / Grafana。</li>
+      <li>sha256 不能直接还原问句，演示排障要另留对照。</li>
+      <li>时间线窗口跟事件 TTL 走，过期即无。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 工业页要有「能给访客看」的指标，而不能给访客 Prometheus。
+- 需要证明工具拒绝发生过，又不把问句写进审计表。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: '指标',
+      path: 'java/.../observability/service/ProductionMetrics.java',
+      note: 'prod_* Counter / Timer。',
+    },
+    {
+      node: '只读接口',
+      path: 'java/.../observability/controller/ProductionOpsController.java',
+      note: 'snapshot / audit / loadtest / runs。',
+    },
+    {
+      node: '审计',
+      path: 'java/.../audit/service/AuditService.java',
+      note: '失败不影响调用方。',
+    },
+    {
+      node: '时间线',
+      path: 'java/.../observability/service/ProductionRunTimelineService.java',
+      note: '跨租户 404。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| 浏览器不刮 Prometheus | 少一个攻击面；多一个 snapshot 聚合 |
+| 审计失败吞掉 | 主链路更稳；可能丢审计 |
+| 时间线 404 而非 410 | 不暴露存在性；排障少一种精确状态 |
+
+## 刻意不做
+
+- 不做 LangSmith 级追踪产品  
+- 不做云托管 Grafana  
+- 不把问句原文写入 prod_audit_log
+
+源码：[ai-example](https://github.com/Feike1993/ai-example) · production observability。

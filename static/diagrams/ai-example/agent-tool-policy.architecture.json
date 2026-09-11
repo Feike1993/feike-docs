@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example 生产 Agent 工具策略",
+    "locale": "zh-CN",
+    "output": "agent-tool-policy.html",
+    "viewBox": [1080, 520],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "see", "label": "看见之前", "focus": ["policy", "schema", "llm"], "note": "被拒工具不进 schema。" },
+      { "id": "probe", "label": "探针", "focus": ["admin", "probe", "policy"], "note": "不调模型、不真执行。" },
+      { "id": "audit", "label": "审计", "focus": ["probe", "audit"], "note": "只记工具名与 denied。" }
+    ]
+  },
+  "components": [
+    { "id": "alice", "type": "external", "label": "alice", "sublabel": "USER 工具", "pos": [40, 80], "size": [120, 56] },
+    { "id": "admin", "type": "security", "label": "admin", "sublabel": "+ rebuild_index", "pos": [40, 320], "size": [140, 56] },
+    { "id": "policy", "type": "security", "label": "ToolPolicy", "sublabel": "按角色过滤", "pos": [260, 200], "size": [150, 56], "tag": "schema 前" },
+    { "id": "schema", "type": "backend", "label": "工具 Schema", "sublabel": "发给模型", "pos": [520, 80], "size": [150, 56] },
+    { "id": "llm", "type": "cloud", "label": "ChatModel", "sublabel": "只看见允许的", "pos": [780, 80], "size": [160, 56] },
+    { "id": "probe", "type": "backend", "label": "tool-probe", "sublabel": "无 LLM", "pos": [520, 320], "size": [150, 56] },
+    { "id": "audit", "type": "database", "label": "prod_audit_log", "sublabel": "toolName / denied", "pos": [780, 320], "size": [170, 56] }
+  ],
+  "connections": [
+    { "id": "alice-policy", "from": "alice", "to": "policy", "label": "search_kb 等", "variant": "emphasis" },
+    { "id": "admin-policy", "from": "admin", "to": "policy", "label": "含重建索引", "variant": "security" },
+    { "id": "policy-schema", "from": "policy", "to": "schema", "label": "允许的才挂上", "variant": "emphasis" },
+    { "id": "schema-llm", "from": "schema", "to": "llm", "label": "schema", "variant": "emphasis" },
+    { "id": "admin-probe", "from": "admin", "to": "probe", "label": "探针", "variant": "dashed" },
+    { "id": "probe-audit", "from": "probe", "to": "audit", "label": "不问句原文", "variant": "security" }
+  ],
+  "cards": [
+    { "dot": "rose", "title": "为何先过滤", "items": ["告诉模型有调不了的工具", "它几乎一定会去调", "拒绝发生在看见之前"] },
+    { "dot": "cyan", "title": "探针", "items": ["默认 E2E 不打 /agent/stream", "admin 探针不重建语料", "alice 探针 denied=true"] },
+    { "dot": "orange", "title": "对照教学", "items": ["教学 ReAct 不按角色裁剪", "本页不重写 Loop", "逐步 SSE 见可观测页"] }
+  ]
+}

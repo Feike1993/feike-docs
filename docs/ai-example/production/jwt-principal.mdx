@@ -1,0 +1,130 @@
+---
+sidebar_position: 2
+title: JWT 与显式 Principal
+description: 只武装 /api/v1；HMAC 来自信封；SSE 虚拟线程不用 SecurityContextHolder；错租户 404
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# JWT 与显式 Principal
+
+对应生产路径 `com.feike.ai.production.auth`。工业接口要身份和租户，教学路径必须继续匿名。SSE 跑在虚拟线程上，不能把身份藏在 `SecurityContextHolder` 里碰运气。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="默认 Spring Security 会锁住整个站点；Filter 校验成功后若只写入 SecurityContext，虚拟线程上的 SSE worker 再取就变成空。错租户若回 403，等于告诉探测者「这个 sessionId 存在」。"
+  rightTitle="目的"
+  right="JwtAuthFilter 只扫 /api/v1（登录接口放行）；校验后把 ProductionPrincipal 放进 request attribute，控制器作为方法参数下传到编排层。跨租户与不存在一律 404。"
+/>
+
+## 架构图
+
+下图是身份怎么走：样例路径绕开 Filter；登录发 JWT；Filter 放入 ATTR；Controller `require(http)` 后显式传给编排。上沿标出「不要用 SecurityContext 跨虚拟线程」。
+
+<DiagramFrame
+  title="只武装 /api/v1，显式下传 Principal"
+  tool="archify"
+  description="教学路径放行；Filter 校验 JWT 后写入 request；编排层拿参数而不是 Holder。">
+  <ArchifyEmbed
+    src="/diagrams/ai-example/jwt-principal.html"
+    title="JWT 与显式 Principal"
+    height={600}
+  />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **谁被 Filter 看见**  
+   路径不含 `/api/v1` 则 `shouldNotFilter`。`POST /api/v1/auth/token` 放行以便换令牌。Prometheus 刮取走独立 `PRODUCTION_METRICS_TOKEN`，不复用用户 JWT。
+
+2. **缺密钥先 503**  
+   信封还不可用时不进入「没带令牌」分支，避免把配置问题伪装成登录失败。
+
+3. **校验后写入 request**  
+   HMAC 来自信封里的 `jwt.hmac`，不写在配置文件明文。成功则 `request.setAttribute(ProductionPrincipal.ATTR, principal)`，并往 MDC 放 tenant / sub。
+
+4. **控制器显式下传**  
+   `JwtAuthFilter.require(http)` 取出 Principal，作为参数传到 Chat / Agent。SSE worker 用的是这个对象的副本语义，不靠线程局部存储。
+
+5. **租户隔离的对外形状**  
+   读到不属于自己的 session / run 时抛 `SessionNotOwnedException`，HTTP 与 SSE 都落成 `session_not_found` **404**，不暴露存在性。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>教学点击路径保持匿名。</li>
+      <li>身份在方法签名上看得见，虚拟线程不会悄悄丢。</li>
+      <li>Filter 自己写 JSON，与 ExceptionHandler 的 <code>{'{code,message}'}</code> 一致。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>每个工业控制器都要 require，漏传不会在编译期被 Spring Security 兜住。</li>
+      <li>Demo 用户不是 IdP / OAuth，只够讲清租户与角色。</li>
+      <li>HMAC 轮换依赖信封，进程要能读当前 KEK。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 同一进程里样例匿名、工业接口有租户。
+- 流式接口用虚拟线程，不能假设 `SecurityContext` 会传播。
+- 跨租户探测必须得到与「不存在」相同的 404。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: 'Filter',
+      path: 'java/.../auth/controller/JwtAuthFilter.java',
+      note: '只武装 /api/v1；ATTR；缺 KEK 为 503。',
+    },
+    {
+      node: 'Security 链',
+      path: 'java/.../auth/config/ProductionSecurityConfiguration.java',
+      note: '排除默认锁全站；教学路径 permitAll。',
+    },
+    {
+      node: 'JWT',
+      path: 'java/.../auth/manager/JwtService.java',
+      note: 'HS256；HMAC 来自 jwt.hmac。',
+    },
+    {
+      node: 'Principal',
+      path: 'java/.../auth/model/ProductionPrincipal.java',
+      note: 'subject / tenantId / roles；admin()。',
+    },
+    {
+      node: '登录',
+      path: 'java/.../auth/controller/ProductionAuthController.java',
+      note: 'POST /auth/token；登录桶按 IP。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| 只武装 /api/v1 | 课程不被挡住；身份边界靠路径而不是注解扫全包 |
+| 显式参数而非 Holder | 虚拟线程安全；每个入口多写一行 require |
+| 错租户 404 | 不给存在性泄漏；排障时要靠本租户的 sessionId |
+| 刮取用独立 Bearer | 浏览器 JWT 刮不到 Prometheus |
+
+## 刻意不做
+
+- 不做 OAuth / OIDC / 企业 IdP  
+- 不把 MCP Bearer 当成用户身份（那是工具进程凭证）  
+- 不在 SSE 里重新解析一次 JWT 当唯一真相（以 request 下传为准）
+
+信封如何保住 HMAC：见 [信封加密](./envelope-secret)。错误码目录：见 [错误契约](./error-contract)。
+
+源码：[ai-example](https://github.com/Feike1993/ai-example) · production auth。

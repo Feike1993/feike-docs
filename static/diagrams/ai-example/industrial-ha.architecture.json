@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example 双实例 HA",
+    "locale": "zh-CN",
+    "output": "industrial-ha.html",
+    "viewBox": [1080, 520],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "lb", "label": "反代", "focus": ["nginx", "javaA", "javaB"], "note": "least_conn，不要绑死一台。" },
+      { "id": "share", "label": "共享", "focus": ["javaA", "javaB", "shared"], "note": "锁、事件、HMAC 都跨进程。" },
+      { "id": "probe", "label": "探针", "focus": ["nginx", "javaA", "javaB"], "note": "lock-probe / sse-probe 不打 LLM。" }
+    ]
+  },
+  "components": [
+    { "id": "browser", "type": "frontend", "label": "浏览器", "sublabel": ":8088", "pos": [40, 220], "size": [130, 56] },
+    { "id": "nginx", "type": "backend", "label": "Nginx", "sublabel": "least_conn", "pos": [250, 220], "size": [140, 56] },
+    { "id": "javaA", "type": "backend", "label": "java-a", "sublabel": "X-Instance-Id", "pos": [480, 80], "size": [150, 56] },
+    { "id": "javaB", "type": "backend", "label": "java-b", "sublabel": "同镜像", "pos": [480, 360], "size": [150, 56] },
+    { "id": "shared", "type": "database", "label": "Redis + Postgres", "sublabel": "锁 / Stream / 信封", "pos": [760, 220], "size": [190, 56] }
+  ],
+  "connections": [
+    { "id": "b-n", "from": "browser", "to": "nginx", "label": "/ai-example/", "variant": "emphasis" },
+    { "id": "n-a", "from": "nginx", "to": "javaA", "label": "反代", "variant": "emphasis" },
+    { "id": "n-b", "from": "nginx", "to": "javaB", "label": "反代", "variant": "emphasis" },
+    { "id": "a-s", "from": "javaA", "to": "shared", "label": "跨进程", "variant": "emphasis" },
+    { "id": "b-s", "from": "javaB", "to": "shared", "label": "跨进程", "variant": "emphasis" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "要证明什么", "items": ["两台身份可辨", "同 session 跨实例 409", "A 写事件 B 能回放"] },
+    { "dot": "orange", "title": "为何探针", "items": ["输入护栏在占锁前返回", "默认套件打不到 session_busy", "真 Chat 会绑 LLM"] },
+    { "dot": "emerald", "title": "本机", "items": ["不要用 Vite 验双实例", "health 没有实例头", "详细 curl 见源码仓"] }
+  ]
+}

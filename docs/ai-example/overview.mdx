@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: 概览
-description: ai-example 底层原理与源码架构讲解；架构图统一使用 Archify
+description: ai-example 基础教学与生产实践；架构图统一使用 Archify
 ---
 
 import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
@@ -9,15 +9,15 @@ import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed'
 
 # ai-example 原理与架构
 
-本栏目沉淀 [ai-example](https://github.com/Feike1993/ai-example) 的**底层原理**与**源码架构图**讲解。
+本栏目沉淀 [ai-example](https://github.com/Feike1993/ai-example) 的**基础教学**与**生产实践**，以及源码架构图讲解。
 
 架构图统一用 **Archify**（typed IR → 自包含 HTML，站内 iframe 嵌入）。
 
 每页结构对齐 playground `SampleLogic`，阅读顺序为：**问题 | 目的（双栏）→ Archify 图 → 流程步骤 → 优点 | 缺点（双栏）→ 应用场景 → 源码落点**。
 
-## 系统总览
+## 系统总览（教学场）
 
-下图把样例能力、模型与旁进程 MCP 放在一张图里；后面各原理页再展开对应局部。
+下图把样例能力、模型与旁进程 MCP 放在一张图里；后面各教学原理页再展开对应局部。
 
 <DiagramFrame
   title="ai-example 系统总览"
@@ -32,6 +32,23 @@ import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed'
 
 </DiagramFrame>
 
+## 工业级双平面
+
+教学场保持匿名可点；工业级是另一条必须显式打开的 `/api/v1`。总览与开关语义见 [教学 / 工业双平面](./production/dual-plane)。
+
+<DiagramFrame
+  title="教学场与工业级"
+  tool="archify"
+  description="Playground 对 samples/；industrial.html 对 JWT 武装的 /api/v1 与 production/。">
+
+  <ArchifyEmbed
+    src="/diagrams/ai-example/production-planes.html"
+    title="教学 / 工业双平面"
+    height={640}
+  />
+
+</DiagramFrame>
+
 ## 阅读顺序（基线）
 
 1. [Chat 与 Tool Calling](./principles/chat-tools)  
@@ -40,13 +57,24 @@ import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed'
 4. [三种记忆平面](./principles/memory-planes)  
 5. [MCP 进程边界](./principles/mcp-boundary)  
 
-## 进阶
+## 进阶（教学）
 
 6. [Hybrid RAG](./principles/hybrid-retrieval/hybrid-rag) → [HyDE](./principles/hybrid-retrieval/hyde) → [语义分块](./principles/hybrid-retrieval/semantic-chunk) → [父子文档](./principles/hybrid-retrieval/parent-child) → [Citation](./principles/hybrid-retrieval/rag-citation)  
 7. [多 Agent](./principles/multi-agent/orchestrator)  
 8. [逐步 SSE](./principles/observability/agent-tool-sse) · [TokenUsage](./principles/observability/token-usage)  
 9. [Eval](./principles/quality/eval) · [护栏](./principles/quality/guardrail)  
-10. [Redis 令牌桶](./principles/production/redis-token-bucket) · 验证见 [Grafana k6](/docs/tech-stack/loadtest/k6)  
+
+## 工业级阅读顺序
+
+10. [教学 / 工业双平面](./production/dual-plane)  
+11. [JWT 与显式 Principal](./production/jwt-principal) · [信封加密](./production/envelope-secret)  
+12. [会话原子轮次与 Redis 软锁](./production/session-correctness) · [生产 SSE 与断线续传](./production/sse-resume)  
+13. [Redis 失败取向](./production/redis-degrade) · [Redis 令牌桶](./production/redis-token-bucket)  
+14. [生产 RAG 默认](./production/production-rag) · [异步入库](./production/ingest-stream)  
+15. [生产 Agent 工具策略](./production/agent-tool-policy) · [错误契约](./production/error-contract)  
+16. [媒体探针](./production/media-probe) · [Agent 看图](./production/agent-vl)  
+17. [可观测与审计](./production/ops-audit) · [双实例 HA](./production/industrial-ha)  
+18. 验证：[Grafana k6](/docs/tech-stack/loadtest/k6) · [Playwright 工业 E2E](/docs/tech-stack/e2e/playwright)  
 
 ## 知识点地图
 
@@ -57,4 +85,4 @@ import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed'
 | 记忆与上下文 | [记忆平面](./principles/memory-planes) |
 | MCP 与多 Agent | [MCP](./principles/mcp-boundary)、[多 Agent](./principles/multi-agent/orchestrator) |
 | 可观测 / 护栏 | [SSE](./principles/observability/agent-tool-sse)、[Eval](./principles/quality/eval)、[护栏](./principles/quality/guardrail) |
-| 生产实践 | [Redis 令牌桶](./principles/production/redis-token-bucket)、[Grafana k6](/docs/tech-stack/loadtest/k6) |
+| 生产实践 | [双平面](./production/dual-plane)、[JWT](./production/jwt-principal)、[信封](./production/envelope-secret)、[会话锁](./production/session-correctness)、[SSE 续传](./production/sse-resume)、[失败取向](./production/redis-degrade)、[令牌桶](./production/redis-token-bucket)、[k6](/docs/tech-stack/loadtest/k6)、[Playwright](/docs/tech-stack/e2e/playwright) |

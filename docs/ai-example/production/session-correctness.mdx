@@ -1,0 +1,140 @@
+---
+sidebar_position: 4
+title: 会话原子轮次与 Redis 软锁
+description: 对照教学版三个并发缺陷；正确性在 Postgres 主键；Redis 锁只做 UX 且 fail-open
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# 会话原子轮次与 Redis 软锁
+
+对应生产路径 `com.feike.ai.production.session` 与 `lock`。教学版 JDBC 会话能讲清「消息进库」，但并发下一轮会对不齐。工业链路把**正确性**放在数据库约束上，把 Redis 锁只当成体验优化。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="教学版分两次裸写 user / assistant，中间崩溃会留下没有回答的孤儿 user，并一直污染后续 prompt。先 SELECT MAX(seq) 再 INSERT 有 TOCTOU 窗口；在 @Transactional 里碰到主键冲突再重试，事务已被标成 rollback-only。"
+  rightTitle="目的"
+  right="同一事务写入一整轮；序号在单条 INSERT … SELECT 里算完，复合主键兜底并发；TransactionTemplate 在事务外重试。Redis SET NX 只防止同一会话叠两轮生成，挂了就放行。"
+/>
+
+## 架构图
+
+下图把两层叠在一起：上沿 Redis 锁给出 `session_busy` 或 fail-open；下沿 DAO 把一轮写进 Postgres，冲突由主键处理。
+
+<DiagramFrame
+  title="锁是 UX，主键是正确性"
+  tool="archify"
+  description="tryAcquire 未拿到则 409；落库只在 done；Redis 挂了锁放行，正确性仍靠 PK。">
+  <ArchifyEmbed
+    src="/diagrams/ai-example/session-correctness.html"
+    title="会话锁与原子轮次"
+    height={620}
+  />
+</DiagramFrame>
+
+## 双实例互斥
+
+真 Chat 会先过输入护栏才占锁，默认套件打不到 `session_busy`。所以用 `lock-probe` 占 Redis、不打 LLM。解锁必须 Lua 比对 token：持有者若超时，锁可能已被别人拿走，裸 DEL 会删掉别人的锁。
+
+<DiagramFrame
+  title="java-a 持锁时 java-b 返回 409"
+  tool="archify"
+  description="A SET NX 成功；B 同 sessionId 得到 session_busy；A 用 CAS 释放。">
+  <ArchifyEmbed
+    src="/diagrams/ai-example/session-busy.html"
+    title="双实例会话锁"
+    height={700}
+  />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **整轮原子**  
+   user 与 assistant 同一事务。取消或报错不落库：宁可丢一轮，也不让孤儿 user 进入下一轮 prompt。
+
+2. **序号**  
+   `INSERT … SELECT COALESCE(MAX(seq), -1) + 1` 消掉「先读再写」窗口。两个事务仍可能读到同一 MAX，此时 `(session_id, seq)` 让后提交者失败，DAO 在事务外重取一次号。
+
+3. **为何不用 @Transactional 重试**  
+   主键冲突会把当前事务标成 rollback-only，在里面重试只会连环失败；自调用还不走代理。`TransactionTemplate` 把「一次尝试 = 一个事务」写成显式循环。
+
+4. **幂等**  
+   先按 `turnId` 查重，覆盖本类重试和客户端重复提交。库上还有 `uk_prod_chat_message_turn_role`。生产 DAO **没有** `replace()`，只追加。
+
+5. **软锁**  
+   `SET key token NX PX ttl`；释放走 CAS。TTL 必须长于一次对话墙钟上限。Redis 挂了**放行**——为锁把整条问答停掉不划算。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>正确性不依赖应用锁是否还活着。</li>
+      <li>历史里不会出现「只有问没有答」的脏轮次。</li>
+      <li>锁失败取向与令牌桶一致，和 SSE 日志相反，便于对照记忆。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>fail-open 期间两台实例可能同时生成，靠 PK 与 turnId 收敛。</li>
+      <li>TTL 到期后锁消失，慢请求可能与下一轮重叠。</li>
+      <li>探针不是真 Chat，不能替代带 Key 的端到端。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 多实例下同一 `sessionId` 不能叠两轮流式生成。
+- 要把「体验互斥」和「数据正确」拆开讲清楚。
+- 对照教学 `JdbcChatSessionDAOImpl` 看并发补丁落在哪。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: 'DAO',
+      path: 'java/.../session/dao/impl/JdbcProductionChatSessionDAOImpl.java',
+      note: '原子轮次、事务外重试、turnId 幂等。',
+    },
+    {
+      node: '接口语义',
+      path: 'java/.../session/dao/ProductionChatSessionDAO.java',
+      note: '无 replace()；错租户读空不暴露存在性。',
+    },
+    {
+      node: 'Redis 锁',
+      path: 'java/.../lock/manager/RedisSessionLock.java',
+      note: 'SET NX + Lua CAS；fail-open。',
+    },
+    {
+      node: '编排',
+      path: 'java/.../chat/service/impl/ProductionChatServiceImpl.java',
+      note: '仅 done 落库；session_busy。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| 正确性在 PK | 锁可以 fail-open；并发下多一次冲突重试 |
+| 只有 done 才写 | 取消干净；用户看不到的半轮不会污染 prompt |
+| Lua CAS 解锁 | 比裸 DEL 多一次脚本；避免误删他人锁 |
+| 锁 TTL ≈ 流超时 | 进程被 kill 能恢复；过短会误伤慢生成 |
+
+## 刻意不做
+
+- 不把 Redis 锁当成唯一正确性来源  
+- 不在教学 DAO 上「修到能上生产」——生产是另一套语义  
+- 不在本页抄 Compose 启动命令（见 [双实例 HA](./industrial-ha)）
+
+SSE 为何 Redis 挂了反而要 503：见 [生产 SSE 与断线续传](./sse-resume)。
+
+源码：[ai-example](https://github.com/Feike1993/ai-example) · production session / lock。

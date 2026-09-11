@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example 可观测与审计",
+    "locale": "zh-CN",
+    "output": "ops-audit.html",
+    "viewBox": [1080, 540],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "snap", "label": "快照", "focus": ["ui", "ops", "metrics"], "note": "浏览器只读安全子集。" },
+      { "id": "prom", "label": "刮取", "focus": ["prom", "grafana", "metrics"], "note": "独立 metrics token。" },
+      { "id": "audit", "label": "审计", "focus": ["ops", "audit", "timeline"], "note": "问题只存 sha256。" }
+    ]
+  },
+  "components": [
+    { "id": "ui", "type": "frontend", "label": "工业页", "sublabel": "可观测 / 安全", "pos": [40, 80], "size": [150, 56] },
+    { "id": "ops", "type": "backend", "label": "/ops/snapshot", "sublabel": "只读子集", "pos": [270, 80], "size": [160, 56] },
+    { "id": "metrics", "type": "backend", "label": "ProductionMetrics", "sublabel": "prod_*", "pos": [520, 80], "size": [180, 56] },
+    { "id": "audit", "type": "database", "label": "prod_audit_log", "sublabel": "questionSha256", "pos": [800, 80], "size": [170, 56] },
+    { "id": "prom", "type": "security", "label": "/actuator/prometheus", "sublabel": "metrics token", "pos": [270, 320], "size": [190, 56] },
+    { "id": "grafana", "type": "cloud", "label": "Grafana", "sublabel": "不给浏览器直连", "pos": [520, 320], "size": [180, 56] },
+    { "id": "timeline", "type": "backend", "label": "/ops/runs/{id}", "sublabel": "跨租户 404", "pos": [800, 320], "size": [170, 56] }
+  ],
+  "connections": [
+    { "id": "ui-ops", "from": "ui", "to": "ops", "label": "JWT", "variant": "emphasis" },
+    { "id": "ops-metrics", "from": "ops", "to": "metrics", "label": "读计数", "variant": "emphasis" },
+    { "id": "metrics-audit", "from": "metrics", "to": "audit", "label": "GET /audit", "variant": "dashed" },
+    { "id": "prom-grafana", "from": "prom", "to": "grafana", "label": "Bearer 一致", "variant": "security" },
+    { "id": "audit-tl", "from": "audit", "to": "timeline", "label": "步骤时间线", "variant": "emphasis", "labelDy": 24 }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "浏览器", "items": ["不直连 Prometheus", "快照是安全子集", "匿名刮取不是 200"] },
+    { "dot": "rose", "title": "审计", "items": ["失败不改变业务响应", "不问句原文", "工具拒绝记 toolName"] },
+    { "dot": "orange", "title": "时间线", "items": ["从事件日志抽出步骤", "过期与错租户一律 404", "不用 410 暴露存在性"] }
+  ]
+}

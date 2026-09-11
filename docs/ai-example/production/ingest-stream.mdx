@@ -1,0 +1,116 @@
+---
+sidebar_position: 8
+title: 异步入库
+description: POST 202 + jobId；Redis Stream 管谁来做、Hash 管做到哪了；双实例只消费一次
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# 异步入库
+
+对应生产路径 `com.feike.ai.production.rag.ingest`。教学 ingest 是同步、匿名、当前请求线程里建完索引。工业重建语料是管理员任务：要排队、要跨实例只做一次、没 Embedding Key 时也不能把 HTTP 挂住。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="同步 ingest 会把一次 HTTP 绑在 Embedding 批次上，双实例还会把同一份语料吃两遍。XREAD 只能看见还没 ACK 的消息，完成后前端仍要查 chunkCount——Stream 自己当不了任务表。"
+  rightTitle="目的"
+  right="ADMIN POST /rag/ingest 立即 202 + jobId。Stream 负责谁来做，Hash 负责做到哪了。consumer group 保证两台 Java 只 ACK 一次。alice 得到 403。"
+/>
+
+## 架构图
+
+投递进 Stream，组名 `prod-ingest`。java-a / java-b 抢同一条；状态写在独立 Hash 上供轮询。alice 禁止重建，写在卡片里，不占主路径。
+
+<DiagramFrame
+  title="Stream 管调度，Hash 管进度"
+  tool="archify"
+  description="ADMIN 202 → XADD → consumer group 只消费一次；Hash 给前端轮询。">
+  <ArchifyEmbed
+    src="/diagrams/ai-example/ingest-stream.html"
+    title="异步入库"
+    height={600}
+  />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **权限在投递前**  
+   非 ADMIN → `ingest_forbidden` 403。不要先入队再在 worker 里拒绝，否则队列里会堆没有身份的任务。
+
+2. **202 而不是 200**  
+   立刻返回 `jobId` 与 `queued` / `running`。消费很快时轮询也可能已经是终态。
+
+3. **两份存储**  
+   Stream：还没 ACK 的活。Hash：`chunkCount`、`errorMessage`、`instanceId`。XREAD 看不见已完成任务，前端却还要展示。
+
+4. **只消费一次**  
+   同一 `jobId` 的 `instanceId` 不应在两次查询间从 a 跳到 b。`PRODUCTION_EVENT_LOG=memory` 时退回进程内队列，这条保证失效。
+
+5. **没有 Key 也要把管道跑完**  
+   任务仍投递，终态 `failed` 带错误文案。这已经证明可观测；HTTP 一直挂起才是失败。真建索引要 Embedding，标成「本机选跑」。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>管理接口的延迟与 Embedding 解耦。</li>
+      <li>双实例不会把同一 job 做两遍。</li>
+      <li>没 Key 时失败可见，而不是超时。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>多了 job 轮询协议，前端必须处理 queued/running/succeeded/failed。</li>
+      <li>memory 实现会让「只一次」在多实例下不成立，配置要配对。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 重建生产语料不能占用问答请求线程。
+- 要演示「没 Key 时管道仍然可观测」。
+- 对照教学同步 `POST /rag/ingest`：那条路径不要拿来做工业验收。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: 'Redis 管道',
+      path: 'java/.../rag/ingest/service/impl/RedisProductionIngestJobServiceImpl.java',
+      note: 'Stream + Hash + consumer group。',
+    },
+    {
+      node: '真正建索引',
+      path: 'java/.../rag/ingest/service/impl/ProductionIngestServiceImpl.java',
+      note: 'worker 内同步 Embedding。',
+    },
+    {
+      node: 'HTTP',
+      path: 'java/.../chat/controller/ProductionChatController.java',
+      note: 'POST /rag/ingest 202；GET jobs/{id}。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| 202 + 轮询 | 客户端多一轮；避免网关超时 |
+| Stream / Hash 拆开 | 多一个 key 空间；查询终态不必扫 Stream |
+| 无 Key 也入队 | 可观测；会在失败队列里留下演示噪音 |
+
+## 刻意不做
+
+- 不做通用任务框架 / 重试死信产品  
+- 不把教学同步 ingest 改成 202  
+- 知识库上传后台明确不做（见源码 backlog）
+
+源码：[ai-example](https://github.com/Feike1993/ai-example) · production ingest。

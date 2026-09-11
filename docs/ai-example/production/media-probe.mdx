@@ -1,0 +1,123 @@
+---
+sidebar_position: 11
+title: 媒体探针
+description: 一把尺子校验 mime / 体积 / SHA-256；不落盘、不进向量库；历史只写占位；OCR 位图即弃
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# 媒体探针
+
+对应生产路径 `com.feike.ai.production.media`。多模态很容易在探针、问答、Agent、语音四条路上各写一套上限。工业链路强制共用一把尺子，并且**不把 blob 写成长期记忆**。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="Chat 允许 2MiB JPEG、Agent 允许 exe、探针又另算一套体积，漏洞会出现在「没走到的那条路」。把原图写入会话或 pgvector，备份和检索会变成隐私事故。"
+  rightTitle="目的"
+  right="ProductionMediaInspector 只校验 mime / 体积并算 SHA-256，不调模型、不落盘。探针、带图问答、本轮文档、转写共用同一上限。历史只写 [图片] / [文档] 占位。"
+/>
+
+## 架构图
+
+multipart 先过 Inspector：向上是 `/media/probe`（200 且无文件体），向右是 Chat / Agent，再落到会话历史的占位符。ASR / TTS 共用这把尺子，细节写在步骤里，避免图上再拉一条交叉线。
+
+<DiagramFrame
+  title="校验共用，blob 不入库"
+  tool="archify"
+  description="Inspector 同时服务探针与问答；历史只留占位，不写文件体。">
+  <ArchifyEmbed
+    src="/diagrams/ai-example/media-probe.html"
+    title="媒体探针"
+    height={600}
+  />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **探针不打模型**  
+   `POST /media/probe` 无 JWT → 401；`.exe` → `media_unsupported`；超 `PRODUCTION_MEDIA_MAX_BYTES` → `media_too_large`；合法小文件返回 `{ mime, bytes, sha256 }`。
+
+2. **同一上限**  
+   默认最多 3 张图、2 份文档、单文件 2MiB。超件 `media_too_many`，在进 LLM / Agent 循环之前 422。
+
+3. **不落盘**  
+   不写文件系统，不进 pgvector。审计 `media.probe` 只有 sha256。刷新后再问，历史里是占位文本，不再带原图。
+
+4. **文档与 OCR**  
+   可抽文本的 pdf/txt/md/docx/xlsx 走抽取器。扫描 PDF 字太少时渲染页，用现有 VL **只转写**；渲染位图用完即弃，不塞进本轮识图 Media。
+
+5. **语音附录**  
+   ASR/TTS 手写 HTTP，不打开 OpenAI Audio 自动配置（那会把文生图/音频自动配置搅进来）。TTS 空文本 400，违禁词 422 `input_deny`。音频不写入会话。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>改上限只改一处配置。</li>
+      <li>默认 E2E 能用坏 mime / 超件覆盖，不必打 VL。</li>
+      <li>会话备份不会变成原图仓库。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>多轮对话看不到上一张图，只能看到占位。</li>
+      <li>OCR 依赖 VL Key，无 Key 时扫描件 503/422。</li>
+      <li>不是对象存储 / CDN 方案。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 本轮看图 / 带文档，但不做「知识库上传」。
+- CI 要断言鉴权与 mime，不能调用视觉模型。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: '尺子',
+      path: 'java/.../media/manager/ProductionMediaInspector.java',
+      note: 'mime / 体积 / sha256；不调模型。',
+    },
+    {
+      node: '抽取',
+      path: 'java/.../media/manager/ProductionDocumentExtractor.java',
+      note: 'Office / 文本抽出。',
+    },
+    {
+      node: 'OCR',
+      path: 'java/.../media/manager/ProductionDocumentOcr.java',
+      note: '扫描页渲染后即弃。',
+    },
+    {
+      node: 'HTTP',
+      path: 'java/.../media/controller/ProductionMediaController.java',
+      note: 'probe / transcribe / speak。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| 不落 blob | 隐私与备份简单；无法「再看上次那张图」 |
+| 探针与问答共用 Inspector | 行为一致；Inspector 会变胖 |
+| 手写语音 HTTP | 避开错误的 Spring AI 自动配置；自己维护客户端 |
+
+## 刻意不做
+
+- 不做知识库上传后台  
+- 不把附件写入向量库当长期记忆  
+- 默认 Playwright 不打 VL / ASR / TTS
+
+Agent 有图时为何先转写：见 [Agent 看图](./agent-vl)。
+
+源码：[ai-example](https://github.com/Feike1993/ai-example) · production media。

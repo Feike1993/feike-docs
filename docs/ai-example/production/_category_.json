@@ -1,0 +1,9 @@
+{
+  "label": "生产实践",
+  "position": 3,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "description": "工业级 /api/v1：双平面、JWT、信封、会话锁、SSE 续传、Redis 失败取向、令牌桶、生产 RAG、异步入库、工具策略、错误契约、媒体与 HA。验证见 Grafana k6 与 Playwright。"
+  }
+}

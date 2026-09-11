@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "ai-example 生产 RAG 默认",
+    "locale": "zh-CN",
+    "output": "production-rag.html",
+    "viewBox": [1068, 720],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "off", "label": "扩展默关", "focus": ["query", "expander", "vector"], "note": "rewrite/HyDE 默认不打额外 LLM。" },
+      { "id": "fuse", "label": "双路", "focus": ["vector", "keyword", "rrf"], "note": "全文路缺失则退回纯向量。" },
+      { "id": "gen", "label": "接地", "focus": ["rrf", "chat"], "note": "空命中拒答，不调 Chat。" }
+    ]
+  },
+  "stages": [
+    { "label": "查询" },
+    { "label": "扩展" },
+    { "label": "召回" },
+    { "label": "融合" },
+    { "label": "回答" }
+  ],
+  "nodes": [
+    { "id": "query", "type": "frontend", "label": "问题", "sublabel": "tenant 语料", "stage": 0, "row": 2, "tag": "online" },
+    { "id": "expander", "type": "backend", "label": "QueryExpander", "sublabel": "默认 none", "stage": 1, "row": 2, "tag": "opt-in" },
+    { "id": "vector", "type": "backend", "label": "向量路", "sublabel": "pgvector", "stage": 2, "row": 2, "tag": "topK" },
+    { "id": "keyword", "type": "backend", "label": "全文路", "sublabel": "可缺省", "stage": 2, "row": 4, "tag": "FTS" },
+    { "id": "rrf", "type": "backend", "label": "RRF", "sublabel": "复用 core", "stage": 3, "row": 2, "tag": "fusion" },
+    { "id": "chat", "type": "cloud", "label": "接地或拒答", "sublabel": "空则不调 LLM", "stage": 4, "row": 2, "tag": "answer" }
+  ],
+  "flows": [
+    { "id": "q-e", "from": "query", "to": "expander", "label": "原文", "variant": "emphasis", "route": "straight" },
+    { "id": "e-v", "from": "expander", "to": "vector", "label": "检索 query", "variant": "emphasis", "route": "straight" },
+    { "id": "e-k", "from": "expander", "to": "keyword", "label": "检索 query", "variant": "default", "labelDy": 24 },
+    { "id": "v-r", "from": "vector", "to": "rrf", "label": "排名", "variant": "emphasis", "route": "straight" },
+    { "id": "k-r", "from": "keyword", "to": "rrf", "label": "排名", "variant": "default", "labelDy": 24 },
+    { "id": "r-c", "from": "rrf", "to": "chat", "label": "有命中或拒答", "variant": "emphasis", "route": "straight" }
+  ],
+  "cards": [
+    { "dot": "orange", "title": "与教学差在默认", "items": ["HyDE 不默认开启", "假想文档不进 sources", "少一路召回仍回答"] },
+    { "dot": "rose", "title": "空检索", "items": ["固定拒答", "省一次幻觉调用", "有图时图片本身是上下文"] },
+    { "dot": "emerald", "title": "租户", "items": ["语料带 tenant_id", "不重写 RRF 算法", "算法见 Hybrid 原理页"] }
+  ]
+}

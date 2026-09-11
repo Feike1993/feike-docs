@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ai-example 异步入库",
+    "locale": "zh-CN",
+    "output": "ingest-stream.html",
+    "viewBox": [1080, 520],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "post", "label": "投递", "focus": ["admin", "job", "stream"], "note": "ADMIN 202 + jobId。" },
+      { "id": "once", "label": "只消费一次", "focus": ["group", "javaA", "javaB"], "note": "consumer group 跨实例互斥。" },
+      { "id": "status", "label": "状态", "focus": ["hash", "job"], "note": "Hash 给前端轮询，Stream 不管终态展示。" }
+    ]
+  },
+  "components": [
+    { "id": "admin", "type": "security", "label": "ADMIN", "sublabel": "POST /rag/ingest", "pos": [40, 220], "size": [150, 56] },
+    { "id": "job", "type": "backend", "label": "IngestJob", "sublabel": "202 jobId", "pos": [260, 220], "size": [140, 56] },
+    { "id": "stream", "type": "messagebus", "label": "Redis Stream", "sublabel": "谁来做", "pos": [480, 220], "size": [150, 56], "tag": "XADD" },
+    { "id": "group", "type": "backend", "label": "consumer group", "sublabel": "prod-ingest", "pos": [700, 220], "size": [160, 56] },
+    { "id": "javaA", "type": "backend", "label": "java-a", "sublabel": "ACK 一次", "pos": [940, 80], "size": [110, 56] },
+    { "id": "javaB", "type": "backend", "label": "java-b", "sublabel": "抢不到", "pos": [940, 360], "size": [110, 56] },
+    { "id": "hash", "type": "database", "label": "Job Hash", "sublabel": "做到哪了", "pos": [260, 40], "size": [150, 56] }
+  ],
+  "connections": [
+    { "id": "admin-job", "from": "admin", "to": "job", "label": "投递", "variant": "emphasis" },
+    { "id": "job-stream", "from": "job", "to": "stream", "label": "queued", "variant": "emphasis" },
+    { "id": "job-hash", "from": "job", "to": "hash", "label": "状态", "variant": "dashed", "fromSide": "top", "toSide": "bottom" },
+    { "id": "stream-group", "from": "stream", "to": "group", "label": "XREADGROUP", "variant": "emphasis" },
+    { "id": "group-a", "from": "group", "to": "javaA", "label": "消费", "variant": "emphasis" },
+    { "id": "group-b", "from": "group", "to": "javaB", "label": "不会重复做", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "为何拆两份", "items": ["Stream 只看见未 ACK", "完成后仍要查 chunkCount", "Hash 给轮询"] },
+    { "dot": "orange", "title": "无 Key", "items": ["任务仍投递", "终态 failed 可观测", "alice 得到 403"] },
+    { "dot": "emerald", "title": "对照教学", "items": ["教学 ingest 仍同步匿名", "不要拿样例路径验收", "memory 队列失去只消费一次"] }
+  ]
+}

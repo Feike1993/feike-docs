@@ -162,7 +162,7 @@ tokens      = min(capacity, tokens + elapsed * refillPerMs)
 | Lua 一次结算 | Redis 对单脚本串行，无 GET/SET 竞争窗口；脚本必须自包含 |
 | 只存 tokens + ts | 状态小、好回收；无法按请求审计逐条记录 |
 | TTL = 两个窗口 | 闲置自动消失，又保留一个窗口的连续性 |
-| Redis 挂了放行 | 限流是保护性优化；与会话锁同向，与 SSE 事件日志 fail-closed 相反 |
+| Redis 挂了放行 | 限流是保护性优化；与会话锁同向，与 SSE 事件日志 fail-closed 相反。总表见 [Redis 失败取向](./redis-degrade) |
 | 客户端传入 now | 与 JVM 时钟对齐；跨实例偏差需容忍 |
 
 ## 刻意不做

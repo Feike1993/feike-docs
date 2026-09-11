@@ -1,0 +1,127 @@
+---
+sidebar_position: 10
+title: 错误契约
+description: 真 HTTP 状态；code 与 message 字段与 SSE error 同名；未知异常不漏类名；Idempotency-Key 冲突 409
+wrapperClassName: principleDoc
+---
+
+import DiagramFrame from '@site/src/components/ArchitectureDiagram/DiagramFrame';
+import ArchifyEmbed from '@site/src/components/ArchitectureDiagram/ArchifyEmbed';
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# 错误契约
+
+对应生产路径 `com.feike.ai.production.web`。教学样例可以「JSON 里带个 ok 字段」。工业 `/api/v1` 已经靠 401 / 409 / 422 / 429 / 503 工作，成功体也不套 `data`。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="一律 HTTP 200 + Result 会让网关、k6、浏览器分不清限流和业务失败。Filter 不经过 @RestControllerAdvice，若另写一套文案，前端就要分叉。未知异常若把类名堆栈送进浏览器，等于把现场交给探测者。"
+  rightTitle="目的"
+  right="ErrorCodeEnum 同时给出稳定机器码、HTTP 状态和默认中文。Handler 只扫工业包。SSE error 使用同一 code。未知异常对外「系统繁忙」。"
+/>
+
+## 架构图
+
+业务失败进 ExceptionHandler，目录化成 `ErrorCodeEnum`，再分成 HTTP `{code,message}` 与 SSE `error` 事件。两条出口同名，方便对照。
+
+<DiagramFrame
+  title="真状态码，SSE 对齐"
+  tool="archify"
+  description="production 包 → Handler → ErrorCodeEnum → HTTP 或 SSE error。">
+  <ArchifyEmbed
+    src="/diagrams/ai-example/error-contract.html"
+    title="错误契约"
+    height={600}
+  />
+</DiagramFrame>
+
+## 流程步骤
+
+1. **目录化**  
+   机器码给排障和前端分支（`session_busy`、`input_deny`），中文给用户。成功响应不走这套枚举。
+
+2. **Filter 与 Advice 同一 JSON**  
+   `JwtAuthFilter` 自己 `writeJson`，因为 Filter 进不了 `@RestControllerAdvice`。字段仍是 `code` / `message`。
+
+3. **常见状态**（不必记全表，以枚举为准）  
+   401 缺/坏令牌；403 非 ADMIN 重建；404 错租户会话与 run（不暴露存在性）；409 `session_busy` 与 Idempotency-Key 冲突；422 护栏与媒体；429 令牌桶；503 密钥或事件日志。
+
+4. **幂等**  
+   HTTP `Idempotency-Key`：同一租户同一 key 只接受同一份请求体，冲突 409。Redis 挂了 fail-open。GET SSE 不走这里，断线续传已经有 `runId`。
+
+5. **未知异常**  
+   打 error 堆栈；对外通用中文 `internal_error`。不要把异常类名送进工业页。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>k6 / Playwright 可以按真实状态码断言。</li>
+      <li>流式与非流式前端共用一份错误码。</li>
+      <li>网关层的重试 / 熔断能看见 429 与 503 的差别。</li>
+    </ul>
+  }
+  rightTitle="缺点"
+  right={
+    <ul>
+      <li>调用方不能再假设「HTTP 总是 200」。</li>
+      <li>枚举要保持稳定，改 code 等于改契约。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 工业 API 要给压测、E2E、浏览器三套客户端同时用。
+- 需要把限流、护栏、鉴权从「业务失败字符串」里拆开。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: '目录',
+      path: 'java/.../web/ErrorCodeEnum.java',
+      note: 'code + HttpStatus + 默认中文。',
+    },
+    {
+      node: 'Handler',
+      path: 'java/.../web/ProductionExceptionHandler.java',
+      note: '只扫工业包；429 补 Retry-After。',
+    },
+    {
+      node: 'Filter 写出',
+      path: 'java/.../auth/controller/JwtAuthFilter.java',
+      note: '与 Advice 同一 JSON 形状。',
+    },
+    {
+      node: '幂等',
+      path: 'java/.../ratelimit/manager/IdempotencyManager.java',
+      note: '冲突 409；fail-open。',
+    },
+    {
+      node: '前端',
+      path: 'frontend/src/industrial/lib/productionError.ts',
+      note: '按 code 展示中文。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| 真 HTTP 状态 | 与部分国内「一律 200」习惯冲突；和基础设施友好 |
+| code 与 SSE 同名 | 两处要一起改 |
+| 未知异常藏细节 | 排障靠日志；用户看不到类名 |
+
+## 刻意不做
+
+- 不套统一 Result / data  
+- 不把教学样例改成这套错误码  
+- 不在 404 上对错租户使用 410 来「更精确」（会暴露存在性）
+
+令牌桶如何写 Retry-After：见 [Redis 令牌桶](./redis-token-bucket)。
+
+源码：[ai-example](https://github.com/Feike1993/ai-example) · production web。
