@@ -69,7 +69,7 @@ export default function Projects(): ReactNode {
         <Heading as="h2" className={styles.sectionTitle}>
           项目经历
         </Heading>
-        <p className={styles.sectionLead}>企业级平台从 0 到 1 与持续迭代</p>
+        <p className={styles.sectionLead}>企业级平台从 0 到 1，以及开源工程实践</p>
         <div className={styles.projectList}>
           {projects.map((project, index) => (
             <ProjectBlock key={project.name} project={project} index={index} />

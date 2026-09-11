@@ -25,7 +25,7 @@ export const statsDisplayOverride: Record<number, string> = {
 export const strengths: string[] = [
   '10 年 Java 后端架构经验，主导日处理 1 亿+ 条数据的高并发平台 0-1 落地',
   '熟练掌握 Spring Boot 3、Spring Cloud Alibaba，具备集群部署与服务治理实践',
-  '推动 Java + AI 融合，完成知识库向量检索与 AI 接口高并发集成',
+  '工作中对接外部知识库；开源落地 JWT 鉴权、Redis 限流/锁降级、SSE 续传与双实例验证',
   'PMP 认证，可独立负责系统架构与技术方案，具备跨团队交付经验',
 ];
 
@@ -40,6 +40,7 @@ export const skillGroups: SkillGroup[] = [
     items: [
       'Spring Boot 3',
       'Spring Cloud Alibaba',
+      'Spring Security / JWT',
       'MyBatis-Plus',
       'Gateway',
       'EasyExcel',
@@ -51,7 +52,7 @@ export const skillGroups: SkillGroup[] = [
   },
   {
     category: '中间件 / 消息',
-    items: ['Kafka', 'RabbitMQ', 'Redis', 'MQTT 5.0', 'XXL-JOB'],
+    items: ['Kafka', 'RabbitMQ', 'Redis', 'Redis Lua / Stream', 'MQTT 5.0', 'XXL-JOB'],
   },
   {
     category: '大数据 / 分析',
@@ -59,7 +60,7 @@ export const skillGroups: SkillGroup[] = [
   },
   {
     category: 'AI 工程化',
-    items: ['知识库对接', '向量化同步', '语义检索', '高并发 AI 集成'],
+    items: ['知识库对接', '向量化同步', 'SSE 流式接口', '限流与失败降级'],
   },
   {
     category: '部署与运维',
@@ -133,6 +134,23 @@ export const projects: ProjectItem[] = [
       '对接统一登录、OA、SAP 等外部系统，完成 Oracle 至 Doris 数据迁移，部署 Nacos、Doris 集群。',
     ],
     outcome: '分布式架构可横向扩展，日处理数据量过亿，系统长期稳定运行。',
+  },
+  {
+    name: 'ai-example（开源）',
+    role: '独立设计与实现',
+    period: '2026.08 - 至今',
+    background:
+      'Spring Boot AI Agent 学习仓，另做一套可开关的工业级 /api/v1：把鉴权、限流、会话正确性和流式接口降级当作后端问题来做，而不是只演示调用大模型。',
+    responsibility:
+      '独立完成教学场 / 工业场双平面、核心 Java 实现、Compose 双实例与自动化验证。',
+    works: [
+      '教学路径保持匿名可点；工业接口用开关显式装配，关闭则零 Bean，避免样例部署误开鉴权面。',
+      'JWT 只武装 /api/v1；SSE 走虚拟线程会丢掉 SecurityContext，Principal 经请求属性显式下传。跨租户访问返回 404 而非 403，避免资源存在性泄漏。',
+      '会话正确性落在 PostgreSQL 同事务轮次与复合主键；Redis 令牌桶 Lua、会话锁、幂等键 fail-open。SSE 事件日志用 Redis Stream 做 Last-Event-ID 跨实例续传，Redis 不可用时 503。',
+      'LLM Key 信封加密（AES-256-GCM）入库，KEK 只在环境变量；缺密钥接口 503、进程可启动。Compose 双 Java 实例 + Nginx；Playwright 默认不打 LLM，k6 验证 429 / 422 与限流契约。',
+    ],
+    outcome:
+      '开源仓库可一键拉起双实例工业链路；正确性由集成测试兜底，默认验证不依赖 Chat LLM，便于 Code Review 对照源码。',
   },
 ];
 
