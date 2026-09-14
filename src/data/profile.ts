@@ -1,32 +1,27 @@
 export const profile = {
   brand: 'Feike',
-  title: '资深 Java 开发 · 微服务 / 高并发',
-  tagline: '主导日处理 1 亿+ 条数据的高并发平台 0-1 架构设计与落地',
+  title: '资深 Java 开发 / Java 技术负责人',
+  tagline: '10 年 Java 开发经验，5 年新能源制造业务经验，建设生产、质量与研发数字化平台。',
 } as const;
 
 export type StatItem = {
   label: string;
   value: number;
+  prefix?: string;
   suffix: string;
 };
 
 export const stats: StatItem[] = [
-  {label: '后端架构经验', value: 10, suffix: ' 年'},
-  {label: '日均数据处理', value: 1, suffix: ' 亿+'},
-  {label: '设备并发接入', value: 2000, suffix: '+'},
-  {label: '项目管理认证', value: 1, suffix: ' PMP'},
+  {label: 'Java 开发经验', value: 10, suffix: ' 年'},
+  {label: '新能源制造经验', value: 5, suffix: ' 年'},
+  {label: 'IME 质量控制点', value: 4000, prefix: '约 ', suffix: ' 个'},
+  {label: 'IME 日增量数据', value: 1, prefix: '约 ', suffix: ' 亿条'},
 ];
 
-/** Special display for stats that shouldn't animate as plain numbers */
-export const statsDisplayOverride: Record<number, string> = {
-  3: 'PMP',
-};
-
 export const strengths: string[] = [
-  '10 年 Java 后端架构经验，主导日处理 1 亿+ 条数据的高并发平台 0-1 落地',
-  '熟练掌握 Spring Boot 3、Spring Cloud Alibaba，具备集群部署与服务治理实践',
-  '工作中对接外部知识库；开源落地 JWT 鉴权、Redis 限流/锁降级、SSE 续传与双实例验证',
-  'PMP 认证，可独立负责系统架构与技术方案，具备跨团队交付经验',
+  '深耕 Java 后端与新能源制造业务，覆盖 MES 产线后台、IME 智能生产、QMS 质量管理和 IPD 研发管理，具备从业务需求、架构设计到上线与持续迭代的完整经验。',
+  '作为 IME 技术负责人，主导多工厂生产监控与设备采集平台建设，覆盖约 4000 个质量控制点、日增量约 1 亿条数据，具备消息解耦、批量处理、线程池隔离与集群部署实践。',
+  '作为 IPD 项目负责人、QMS 核心开发，落地多层级权限、审批扩展与幂等控制，打通 SAP、OA/BPM 与多数据库链路；持有 PMP 认证，具备跨部门协作、现场交付和技术带教经验。',
 ];
 
 export type SkillGroup = {
@@ -36,35 +31,24 @@ export type SkillGroup = {
 
 export const skillGroups: SkillGroup[] = [
   {
-    category: '核心框架',
-    items: [
-      'Spring Boot 3',
-      'Spring Cloud Alibaba',
-      'Spring Security / JWT',
-      'MyBatis-Plus',
-      'Gateway',
-      'EasyExcel',
-    ],
+    category: 'Java 后端',
+    items: ['Java', 'Spring Boot 3', 'Spring Cloud Alibaba', 'MyBatis-Plus', 'Nacos', 'OpenFeign', 'Spring Cloud Gateway'],
   },
   {
-    category: '微服务 / 治理',
-    items: ['Nacos', 'Sentinel', 'Seata', 'APISIX', 'OpenFeign', 'gRPC'],
+    category: '业务与工程设计',
+    items: ['微服务架构', '多层级权限', '审批策略设计', 'Redis Lua 幂等控制', '动态数据源', '异步与批量处理', 'IO / CPU 线程池隔离'],
   },
   {
-    category: '中间件 / 消息',
-    items: ['Kafka', 'RabbitMQ', 'Redis', 'Redis Lua / Stream', 'MQTT 5.0', 'XXL-JOB'],
+    category: '消息与数据处理',
+    items: ['MQTT 5.0', 'mica-mqtt / Netty', 'RabbitMQ', 'Redis', 'XXL-JOB', 'Doris', 'Flink', 'HBase', 'Hive'],
   },
   {
-    category: '大数据 / 分析',
-    items: ['Flink', 'Doris', 'HBase', 'Hive'],
+    category: '数据库与系统集成',
+    items: ['MySQL', 'Oracle', 'SQL Server', 'PostgreSQL', 'SAP RFC', 'OA/BPM', 'gRPC', '钉钉消息', '请求签名与时间戳校验'],
   },
   {
-    category: 'AI 工程化',
-    items: ['知识库对接', '向量化同步', 'SSE 流式接口', '限流与失败降级'],
-  },
-  {
-    category: '部署与运维',
-    items: ['Linux', 'Docker', '集群搭建', '性能监控'],
+    category: '部署与 AI 应用',
+    items: ['Linux', 'Docker', 'Nacos / Doris 集群', '数据迁移', '质量知识库集成', '业务数据向量化同步', '语义检索', 'AI 业务接口封装'],
   },
 ];
 
@@ -73,84 +57,65 @@ export type ProjectItem = {
   role: string;
   period: string;
   background: string;
-  responsibility: string;
-  works: string[];
+  highlights: [string, string, string];
+  details: string[];
   outcome: string;
 };
 
 export const projects: ProjectItem[] = [
   {
-    name: 'IPD 研发管理',
+    name: 'IPD 研发管理平台',
     role: '项目负责人',
-    period: '2022.10 - 至今',
-    background:
-      '解决研发管理流程混乱、权限不清、数据孤岛问题，打造企业级研发数字化管理平台。',
-    responsibility:
-      '负责系统架构、核心功能开发、权限体系、跨系统集成与全流程迭代落地，带领团队完成系统从 0 到 1 建设与持续迭代。',
-    works: [
-      '搭建 Spring Boot 3 + Spring Cloud Alibaba 微服务架构，覆盖项目管理、任务管理等核心功能，持续迭代 4 年。',
-      '设计全维度权限体系（菜单 / 按钮 / 行级 / 列级），通过 OpenFeign 调用外部权限中心实现运行时动态判定，保障数据安全与合规。',
-      '针对 10+ 审批类型（研发变更、物料申请、质量评审）设计 FlowCallbackFactory + 策略模式，按业务类型动态路由至对应策略，新增审批流程仅需新增策略类即插即用，交付周期缩短 60%。',
-      '集成钉钉机器人，实现移动端即时消息推送、审批通知与智能交互。',
-      '基于 Redis Lua 脚本实现 @Idempotent 幂等注解，结合 SpEL 动态解析幂等键，有效防止表单重复提交。',
-      '多数据源混合技术实践：同时操作 Oracle、SQL Server、PostgreSQL 三个数据库，通过动态数据源路由实现业务解耦。',
-      '实现 EasyExcel 批量导入（含进度回传）、自定义 MyBatis 拦截器自动转义 LIKE 通配符防 SQL 注入。',
+    period: '2023.07 上线，持续迭代',
+    background: '围绕研发项目、计划、任务与审批协同，负责 Java 后端架构迭代、核心功能、权限设计及 OA/BPM 集成。',
+    highlights: [
+      '研发协同：落地任务与里程碑提醒、甘特图任务依赖、研发周报、工时统计及项目看板，支持计划与执行跟踪。',
+      '权限与审批：设计菜单、按钮、行级和列级权限，以回调工厂与策略模式扩展不同业务单据的审批逻辑。',
+      '系统协同：连接 Oracle、SQL Server、PostgreSQL，打通 OA 立项单同步、BPM 流程回调与钉钉通知。',
     ],
-    outcome:
-      '系统 2023 年 7 月正式上线，核心功能稳定运行，实现多系统数据互通，研发管理效率显著提升。',
+    details: [
+      '基于 Spring Boot 3、Spring Cloud Alibaba 实现研发业务与配置模板，通过 OpenFeign 对接权限中心进行运行时判定。',
+      '审批回调按单据类型分发，各策略分别处理需求单、立项单、变更单等业务逻辑，新增类型通过扩展策略接入。',
+      '基于 Redis Lua 与 SpEL 封装 @Idempotent 注解，防止表单重复提交；实现 EasyExcel 批量导入与进度回传。',
+      '通过动态数据源连接存量数据库，支持研发平台与既有业务系统的数据协同。',
+    ],
+    outcome: '2023 年 7 月上线并持续迭代，研发计划、任务、权限与审批流程投入使用，打通研发平台与 OA/BPM 数据链路。',
   },
   {
     name: 'QMS 质量管理系统',
     role: '核心开发',
     period: '2023.07 - 至今',
-    background:
-      '构建企业级质量管控体系，覆盖全链路质检流程，并引入 AI 智能诊断能力。',
-    responsibility:
-      '负责系统架构、核心模块开发、AI 能力集成与全流程落地，协同团队完成系统全模块建设。',
-    works: [
-      '开发报表引擎、质量看板等核心功能，优化数据统计逻辑与计算精度。',
-      '基于 Apache Doris 构建实时分析引擎，承载全量历史数据聚合查询，支持实时报表秒级响应。',
-      '实现 gRPC 服务端 + 客户端连接池，对接工作流引擎回调，支撑审批流程闭环。',
-      '集成企业 ERP 系统（SAP RFC），实现业务数据实时联动。',
-      '设计请求签名 + 时间戳防重放安全机制，基于共享密钥 + 请求参数排序加密，保障微服务间 API 调用的身份认证与防篡改。',
-      '对接外部 AI 知识库服务，实现业务数据的向量化同步与语义检索，支撑智能诊断场景。',
+    background: '建设覆盖过程质量、计量器具及售后质量的管理平台，负责核心业务模块、报表统计、工作流与 AI 应用集成。',
+    highlights: [
+      '质量闭环：开发计量器具全流程管理、售后质量追溯、班组直通率统计与质量看板，统一报表统计口径。',
+      '分析与集成：以 Doris 支持质量报表秒级响应，通过 gRPC 工作流回调和 SAP RFC 完成流程与 ERP 数据联动。',
+      'AI 知识查询：对接外部质量知识库与向量检索服务，完成业务数据向量化同步并封装 6 项 AI 业务接口。',
     ],
-    outcome: '系统稳定运行，全链路质量管控场景覆盖，管理效率显著提升。',
+    details: [
+      '完成售后台账补录、检验报废与制程报废分类等功能，优化报表统计逻辑与计算精度。',
+      '基于 Doris 聚合历史数据，服务质量问题分析与生产指标跟踪。',
+      '实现 gRPC 服务端与客户端连接池，对接工作流回调；通过 SAP RFC 实现质量系统与 ERP 数据联动。',
+      '设计请求签名与时间戳校验机制，支持内部接口身份校验、防篡改及防重放。',
+    ],
+    outcome: '过程质量、计量器具和售后追溯功能上线使用，完成质量业务、工作流、ERP 与知识查询服务集成。',
   },
   {
-    name: 'IME 数据采集与监控平台',
+    name: 'IME 智能生产平台',
     role: '技术负责人',
     period: '2022.03 - 2023.06',
-    background:
-      '打造高并发 IoT 数据中台，实现海量设备数据实时采集、传输、处理与存储一体化。',
-    responsibility:
-      '架构设计、核心开发、集群部署、性能优化与跨系统集成，带领技术团队完成平台从 0 到 1 搭建与落地。',
-    works: [
-      '搭建微服务架构，完成业务模块全功能开发；前期主导产线后台研发，涵盖生产、仓储、全链条追溯等模块，后续演进为统一数据平台。',
-      '基于 mica-mqtt (Netty) 实现 MQTT 5.0 协议接入，利用 MQTT QoS 1 消息确认 + 优雅重连机制（动态刷新 clientId 适配云平台时间戳认证），支撑 2000+ 设备并发接入，保障设备连接可靠性与长期稳定运行。',
-      '设计自适应批量处理引擎，根据处理耗时每 5s 动态调优批次大小（1~100），在高吞吐与低延迟间自动平衡，日处理数据 1 亿 +。',
-      '构建双 Kafka 流拓扑（唯一索引 + 追加日志双通道），兼顾实时更新与历史追溯；通过 Redis 实现热点数据缓存与设备状态持久化。',
-      '设计 IO/CPU 隔离线程池，分离消息解析与状态更新流量，结合 XXL-JOB 分布式调度完成定时批处理。',
-      '对接统一登录、OA、SAP 等外部系统，完成 Oracle 至 Doris 数据迁移，部署 Nacos、Doris 集群。',
+    background: '建设多工厂统一生产监控与设备管理平台，负责分布式架构、核心开发、采集处理、集群部署及现场交付。',
+    highlights: [
+      '工业数据：覆盖约 4000 个质量控制点、日增量约 1 亿条数据，通过 MQTT 5.0 接入设备采集链路。',
+      '处理优化：动态调整批次大小，隔离 IO / CPU 线程池，以 RabbitMQ 解耦设备状态处理。',
+      '多工厂交付：完成 Nacos / Doris 集群部署、Oracle 至 Doris 数据迁移，承担现场部署、技术带教与核心工作交接。',
     ],
-    outcome: '分布式架构可横向扩展，日处理数据量过亿，系统长期稳定运行。',
-  },
-  {
-    name: 'ai-example（开源）',
-    role: '独立设计与实现',
-    period: '2026.08 - 至今',
-    background:
-      'Spring Boot AI Agent 学习仓，另做一套可开关的工业级 /api/v1：把鉴权、限流、会话正确性和流式接口降级当作后端问题来做，而不是只演示调用大模型。',
-    responsibility:
-      '独立完成教学场 / 工业场双平面、核心 Java 实现、Compose 双实例与自动化验证。',
-    works: [
-      '教学路径保持匿名可点；工业接口用开关显式装配，关闭则零 Bean，避免样例部署误开鉴权面。',
-      'JWT 只武装 /api/v1；SSE 走虚拟线程会丢掉 SecurityContext，Principal 经请求属性显式下传。跨租户访问返回 404 而非 403，避免资源存在性泄漏。',
-      '会话正确性落在 PostgreSQL 同事务轮次与复合主键；Redis 令牌桶 Lua、会话锁、幂等键 fail-open。SSE 事件日志用 Redis Stream 做 Last-Event-ID 跨实例续传，Redis 不可用时 503。',
-      'LLM Key 信封加密（AES-256-GCM）入库，KEK 只在环境变量；缺密钥接口 503、进程可启动。Compose 双 Java 实例 + Nginx；Playwright 默认不打 LLM，k6 验证 429 / 422 与限流契约。',
+    details: [
+      '开发设备台账、点巡检、设备保养等 PC / APP 业务，接入海康视频与 OA 单点登录。',
+      '基于 mica-mqtt / Netty 接入 MQTT 5.0，采用 QoS 1 消息确认与断线重连，动态刷新 clientId 适配云平台时间戳认证。',
+      '根据近期处理耗时动态调整批次大小（1-100 条），平衡吞吐与延迟，减少消息处理任务间的资源竞争。',
+      '结合 Redis 缓存与 XXL-JOB 调度完成状态管理及定时批处理，支持平台横向扩展。',
     ],
-    outcome:
-      '开源仓库可一键拉起双实例工业链路；正确性由集成测试兜底，默认验证不依赖 Chat LLM，便于 Code Review 对照源码。',
+    outcome: '完成多工厂平台交付及约 1 亿条日增量数据采集处理，设备管理、生产监控与数据分析能力投入使用。',
   },
 ];
 
@@ -164,16 +129,47 @@ export type ExperienceItem = {
 export const experiences: ExperienceItem[] = [
   {
     company: '浙江南都电源动力股份有限公司',
-    role: '资深 Java 开发 / 技术负责人',
-    period: '2021.08 – 至今',
-    summary:
-      '主导研发管理、质量管控、数据采集三大平台微服务架构，保障高并发与中间件集群稳定，推进 AI 能力落地。',
+    role: 'Java 开发 / 项目及技术负责人',
+    period: '2021.08 - 至今',
+    summary: '围绕新能源制造的生产、质量与研发业务，担任 IPD 项目负责人、QMS 核心开发和 IME 技术负责人；负责 MES Android 端后台与 SAP 接口改造，承担后端架构、系统集成、现场交付与技术带教。',
   },
   {
     company: '杭州三汇数字信息技术有限公司',
     role: 'Java 开发',
-    period: '2016.11 – 2021.07',
-    summary:
-      '负责实时预警与寄递数据系统，Flink 流处理、HBase 海量存储与 Seata/Sentinel 高可用治理。',
+    period: '2016.11 - 2021.07',
+    summary: '参与公安 / 安保领域寄递大数据、重点人员关联分析与实时预警系统建设，负责核心模块、HBase 数据建模、Hive 加工调度与 Flink 实时规则，完成接口联调和上线支持。',
   },
 ];
+
+export type OpenSourcePractice = {
+  title: string;
+  name: string;
+  label: string;
+  description: string;
+  capabilities: {title: string; description: string}[];
+  sourceUrl: string;
+  docsPath: string;
+};
+
+export const openSourcePractice: OpenSourcePractice = {
+  title: '开源 AI 工程实践',
+  name: 'ai-example',
+  label: '个人开源项目',
+  description: '围绕知识检索与 Agent 工具调用，探索 AI 应用的权限控制、会话一致性、流式恢复与工程验证。',
+  capabilities: [
+    {
+      title: '知识检索与 Agent',
+      description: '实现 pgvector 向量与全文混合检索、RRF 融合和可选查询改写；为 Agent 工具调用加入角色权限与审计。',
+    },
+    {
+      title: '会话与流式可靠性',
+      description: '通过 PostgreSQL 事务与唯一约束保障完整轮次和幂等写入，结合 Redis 会话锁、事件日志实现跨实例 SSE 断线续传。',
+    },
+    {
+      title: '安全与工程验证',
+      description: '实现 JWT 鉴权、租户访问控制、Redis 限流和密钥信封加密，提供双实例部署配置、自动化测试及可观测面板。',
+    },
+  ],
+  sourceUrl: 'https://github.com/Feike1993/ai-example',
+  docsPath: '/docs/ai-example/overview',
+};

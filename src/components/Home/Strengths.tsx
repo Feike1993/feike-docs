@@ -16,7 +16,7 @@ export default function Strengths(): ReactNode {
         <Heading as="h2" className={styles.sectionTitle}>
           个人优势
         </Heading>
-        <p className={styles.sectionLead}>架构落地 · 服务治理 · AI 融合 · 项目交付</p>
+        <p className={styles.sectionLead}>制造业务 · 工业数据 · 复杂系统交付</p>
         <ol className={styles.strengthList}>
           {strengths.map((text, index) => (
             <li

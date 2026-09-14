@@ -31,28 +31,34 @@ function ProjectBlock({
 
       <div className={styles.projectBody}>
         <div className={styles.projectField}>
-          <span className={styles.projectLabel}>项目背景</span>
+          <span className={styles.projectLabel}>业务与职责</span>
           <p className={styles.projectText}>{project.background}</p>
         </div>
 
         <div className={styles.projectField}>
-          <span className={styles.projectLabel}>核心职责</span>
-          <p className={styles.projectText}>{project.responsibility}</p>
-        </div>
-
-        <div className={styles.projectField}>
-          <span className={styles.projectLabel}>关键工作</span>
+          <span className={styles.projectLabel}>关键贡献</span>
           <ul className={styles.projectWorks}>
-            {project.works.map((item) => (
+            {project.highlights.map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>
         </div>
 
-        <div className={styles.projectField}>
-          <span className={styles.projectLabel}>项目成果</span>
+        <div className={clsx(styles.projectField, styles.projectOutcome)}>
+          <span className={styles.projectLabel}>交付结果</span>
           <p className={styles.projectText}>{project.outcome}</p>
         </div>
+        <details className={styles.projectDetails}>
+          <summary>
+            查看技术细节
+            <span className={styles.srOnly}>：{project.name}</span>
+          </summary>
+          <ul className={styles.projectWorks}>
+            {project.details.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </details>
       </div>
     </article>
   );
@@ -63,13 +69,14 @@ export default function Projects(): ReactNode {
 
   return (
     <section
+      id="projects"
       ref={ref}
       className={clsx(styles.section, visible && styles.revealed)}>
       <div className="container">
         <Heading as="h2" className={styles.sectionTitle}>
-          项目经历
+          代表项目
         </Heading>
-        <p className={styles.sectionLead}>企业级平台从 0 到 1，以及开源工程实践</p>
+        <p className={styles.sectionLead}>研发协同 · 质量闭环 · 多工厂智能生产</p>
         <div className={styles.projectList}>
           {projects.map((project, index) => (
             <ProjectBlock key={project.name} project={project} index={index} />

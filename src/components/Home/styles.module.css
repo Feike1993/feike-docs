@@ -57,7 +57,7 @@
 }
 
 .heroTagline {
-  max-width: 38rem;
+  max-width: 44rem;
   margin: 0 auto 1.85rem;
   color: rgb(250 246 238 / 82%);
   font-size: 1.05rem;
@@ -214,7 +214,20 @@
 /* —— Skills —— */
 .skillGroups {
   display: grid;
-  gap: 1.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.skillGroup {
+  min-width: 0;
+  padding: 1.25rem;
+  background: var(--ifm-background-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+}
+
+.skillGroup:last-child {
+  grid-column: 1 / -1;
 }
 
 .skillCategory {
@@ -257,12 +270,15 @@
 /* —— Projects —— */
 .projectList {
   display: grid;
-  gap: 0;
+  gap: 1.5rem;
 }
 
 .projectItem {
-  padding: 2rem 0;
-  border-top: 1px solid var(--ifm-color-emphasis-200);
+  min-width: 0;
+  padding: 1.75rem;
+  background: var(--ifm-background-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 10px;
   opacity: 0;
   transform: translateY(0.75rem);
   transition:
@@ -274,10 +290,6 @@
 .revealed .projectItem {
   opacity: 1;
   transform: translateY(0);
-}
-
-.projectItem:last-child {
-  border-bottom: 1px solid var(--ifm-color-emphasis-200);
 }
 
 .projectHeader {
@@ -310,12 +322,12 @@
 .projectBody {
   display: grid;
   gap: 1.15rem;
-  max-width: 52rem;
+  max-width: 62rem;
 }
 
 .projectField {
   display: grid;
-  grid-template-columns: 4.5rem minmax(0, 1fr);
+  grid-template-columns: 5.5rem minmax(0, 1fr);
   gap: 0.75rem 1.25rem;
   align-items: start;
 }
@@ -504,6 +516,158 @@
   }
 
   .heroActions .button {
+    width: 100%;
+  }
+}
+
+/* Project summaries remain visible; implementation details expand on demand. */
+.projectOutcome {
+  padding: 1rem;
+  background: color-mix(in srgb, var(--ifm-color-primary) 7%, var(--ifm-background-color));
+  border-radius: 6px;
+}
+
+.projectDetails {
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+  padding-top: 1rem;
+}
+
+.projectDetails summary {
+  width: fit-content;
+  color: var(--ifm-color-primary);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.projectDetails[open] summary {
+  margin-bottom: 1rem;
+}
+
+.projectDetails summary:focus-visible,
+.heroActions a:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+:global(#projects),
+:global(#contact) {
+  scroll-margin-top: calc(var(--ifm-navbar-height) + 1rem);
+}
+
+@media screen and (max-width: 996px) {
+  .skillGroups {
+    grid-template-columns: 1fr;
+  }
+
+  .projectItem {
+    padding: 1.25rem;
+  }
+
+  .section {
+    padding-top: 2.75rem;
+    padding-bottom: 2.75rem;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .heroActions a {
+    width: 100%;
+  }
+}
+
+/* —— Personal open-source practice —— */
+.openSourceSection {
+  background: color-mix(in srgb, var(--ifm-color-primary) 5%, var(--ifm-background-color));
+  border-block: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.openSourceIdentity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 1rem 0 0.65rem;
+}
+
+.openSourceName {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.openSourceBadge {
+  padding: 0.2rem 0.6rem;
+  color: var(--ifm-font-color-base);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.openSourceLead {
+  max-width: 48rem;
+  margin: 0 0 1.5rem;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.7;
+}
+
+.capabilityGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.capabilityCard {
+  min-width: 0;
+  padding: 1.5rem;
+  background: var(--ifm-background-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+}
+
+.capabilityTitle {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.capabilityCard p {
+  margin: 0;
+  line-height: 1.75;
+}
+
+.openSourceActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.openSourceActions a:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+}
+
+@media screen and (max-width: 996px) {
+  .capabilityGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .capabilityCard {
+    padding: 1.25rem;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .openSourceActions a {
     width: 100%;
   }
 }

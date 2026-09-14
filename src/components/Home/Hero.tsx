@@ -17,7 +17,10 @@ export default function Hero(): ReactNode {
         <p className={styles.heroRole}>{profile.title}</p>
         <p className={styles.heroTagline}>{profile.tagline}</p>
         <div className={styles.heroActions}>
-          <a className={clsx('button button--lg', styles.ctaPrimary)} href="#contact">
+          <a className={clsx('button button--lg', styles.ctaPrimary)} href="#projects">
+            查看代表项目
+          </a>
+          <a className={clsx('button button--lg button--outline', styles.ctaSecondary)} href="#contact">
             联系我
           </a>
           <Link

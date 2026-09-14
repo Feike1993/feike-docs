@@ -16,7 +16,7 @@ export default function Skills(): ReactNode {
         <Heading as="h2" className={styles.sectionTitle}>
           技能栈
         </Heading>
-        <p className={styles.sectionLead}>微服务 · 高并发 · 大数据 · AI 工程化</p>
+        <p className={styles.sectionLead}>从 Java 后端到制造业务、数据处理与系统集成</p>
         <div className={styles.skillGroups}>
           {skillGroups.map((group) => (
             <div key={group.category} className={styles.skillGroup}>

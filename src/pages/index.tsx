@@ -1,5 +1,4 @@
 import type {ReactNode} from 'react';
-import clsx from 'clsx';
 import Layout from '@theme/Layout';
 import {
   Hero,
@@ -7,6 +6,7 @@ import {
   Strengths,
   Skills,
   Projects,
+  OpenSource,
   Experience,
   Contact,
 } from '@site/src/components/Home';
@@ -24,6 +24,7 @@ export default function Home(): ReactNode {
         <Strengths />
         <Skills />
         <Projects />
+        <OpenSource />
         <Experience />
         <Contact />
       </main>

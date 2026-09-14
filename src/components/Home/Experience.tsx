@@ -16,7 +16,7 @@ export default function Experience(): ReactNode {
         <Heading as="h2" className={styles.sectionTitle}>
           工作经历
         </Heading>
-        <p className={styles.sectionLead}>十年深耕，从高并发业务到平台架构</p>
+        <p className={styles.sectionLead}>十年 Java 开发，从寄递大数据到新能源制造数字化</p>
         <ol className={styles.timeline}>
           {experiences.map((item) => (
             <li key={item.company} className={styles.timelineItem}>
