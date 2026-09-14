@@ -48,6 +48,9 @@ importers:
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.18
+      serve-handler:
+        specifier: 6.1.7
+        version: 6.1.7
       typescript:
         specifier: ~6.0.2
         version: 6.0.3

@@ -8,15 +8,11 @@
  */
 import http from 'node:http';
 import path from 'node:path';
-import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
+import serveHandler from 'serve-handler';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
-const require = createRequire(
-  path.join(root, 'node_modules/@docusaurus/core/lib/commands/serve.js'),
-);
-const serveHandler = require('serve-handler');
 
 const baseUrl = '/feike-docs/';
 const outDir = path.join(root, 'build');
