@@ -49,7 +49,7 @@ jobs:
             fi
             sleep 1
           done
-          pnpm check:pages
+          CHECK_ORIGIN=http://127.0.0.1:3000 pnpm check:pages
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
