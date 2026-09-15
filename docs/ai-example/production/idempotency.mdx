@@ -1,0 +1,106 @@
+---
+sidebar_position: 4
+title: HTTP 幂等键
+description: 租户作用域、请求体哈希、响应缓存与 409 冲突；Redis 故障时的 fail-open 边界
+wrapperClassName: principleDoc
+---
+
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# HTTP 幂等键
+
+对应生产路径 `com.feike.ai.production.ratelimit.IdempotencyManager`。网络超时后重发 `POST /chat` 或 `POST /agent`，最危险的结果不是“多拿一次 200”，而是**同一轮模型调用、会话写入或工具轨迹执行两次**。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="客户端不知道超时前服务端是否已经成功。只按 Idempotency-Key 缓存又会让同一个 key 携带另一份请求体时错误复用旧响应；若 key 不带租户作用域，两个租户还能互相命中。"
+  rightTitle="目的"
+  right="以 tenantId + Idempotency-Key 定位一次意图，以 body SHA-256 确认意图未变；首次执行完成后缓存 JSON 响应。相同请求返回缓存，不同请求体返回 409。"
+/>
+
+## 流程步骤
+
+1. **只给有完成响应的 POST 使用**  
+   `POST /chat` 与 `POST /agent` 接受可选 `Idempotency-Key`。GET SSE 不走这套机制：流的恢复标识是 `runId + Last-Event-ID`，见[生产 SSE 与断线续传](./sse-resume)。
+
+2. **先稳定序列化，再计算摘要**  
+   Controller 用 JSON Mapper 将请求体序列化，`sha256` 后传给 `begin`。不要用对象内存地址或仅比较 key；相同 key 与不同 body 必须可区分。
+
+3. **Redis 中原子占位或读缓存**  
+   首次请求写入处理中状态；相同 hash 的后续请求读取已缓存响应；相同 key、不同 hash 抛业务冲突。key 的作用域包含 tenant，不能只按用户可见字符串存取。
+
+4. **只在业务成功后 complete**  
+   Chat / Agent 返回终答后，才把 JSON 响应写入该 key。异常不能伪装成可重放成功响应；客户端应按[错误契约](./error-contract)决定是否换 key、等待或重试。
+
+5. **明确可用性取向**  
+   Redis 通信失败时记录 warning 并放行，不让“防重复执行”变成问答可用性的硬依赖。这意味着 Redis 故障窗口内可能重复执行，必须与业务副作用等级一起评估。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>网络重试可得到首次成功的同一份响应。</li>
+      <li>409 明确暴露客户端错误复用 key，而不是悄悄返回旧答案。</li>
+      <li>租户隔离与请求语义都进入判定条件。</li>
+    </ul>
+  }
+  rightTitle="代价"
+  right={
+    <ul>
+      <li>只覆盖带 key 的非流式入口，不等于所有副作用天然幂等。</li>
+      <li>响应缓存占 Redis 空间，TTL 应由产品重试窗口决定。</li>
+      <li>fail-open 提升可用性，但 Redis 故障时失去重复抑制能力。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 移动网络或网关重试提交同一次非流式问答。
+- 需要阻止浏览器双击把同一 Agent 请求执行两遍。
+- 想把“相同请求的安全重试”和“不同请求误用同一 key”分成可观测的结果。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: '幂等管理器',
+      path: 'java/.../ratelimit/manager/IdempotencyManager.java',
+      note: 'tenant + key + bodyHash；begin / complete；Redis 故障 fail-open。',
+    },
+    {
+      node: 'Chat / Agent HTTP',
+      path: 'java/.../chat/controller/ProductionChatController.java',
+      note: '读取 Idempotency-Key；成功后缓存 answer。',
+    },
+    {
+      node: '错误契约',
+      path: 'java/.../web/ErrorCodeEnum.java',
+      note: '同 key 不同 body → 409。',
+    },
+    {
+      node: 'Redis 取向',
+      path: 'java/.../config/ProductionProperties.java',
+      note: '幂等记录 TTL 配置。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| key 加 tenant | 隔离正确；跨租户不能共享去重 |
+| key 再加 body hash | 防误复用；客户端需在重试时保持请求体一致 |
+| 缓存成功 JSON | 重试体验稳定；不缓存失败减少错误状态黏连 |
+| Redis 挂了放行 | 主链路可用；极端窗口可能重复执行 |
+
+## 刻意不做
+
+- 不用 Idempotency-Key 代替 SSE 的 run 恢复协议  
+- 不保证 Redis 故障期间的 exactly-once 语义  
+- 不将没有副作用的 GET 也接入响应缓存
+
+源码：[ai-example](https://github.com/Feike1993/ai-example) · production idempotency。

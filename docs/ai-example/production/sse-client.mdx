@@ -1,0 +1,106 @@
+---
+sidebar_position: 10
+title: 带鉴权的 SSE 客户端
+description: fetch 流解析替代 EventSource；Authorization、Last-Event-ID、有界续传与坏帧隔离
+wrapperClassName: principleDoc
+---
+
+import SourceMap from '@site/src/components/ArchitectureDiagram/SourceMap';
+import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
+
+# 带鉴权的 SSE 客户端
+
+对应工业前端 `frontend/src/industrial/lib/sseClient.ts`。服务端的 run、seq 与 Redis 回放见[生产 SSE 与断线续传](./sse-resume)；本页解释浏览器怎样**带 JWT 消费该契约，而不是把断流悄悄当成成功**。
+
+<LogicPair
+  leftTitle="解决的问题"
+  left="原生 EventSource 不能按本项目需要携带 Authorization，也无法在重连时设置 Last-Event-ID。若只把 response.text() 当文本拼接，半帧、未知 event、错误事件和未收到 done 的断流都会被误判。"
+  rightTitle="目的"
+  right="用 fetch + ReadableStream 显式设置请求头，按 SSE 帧解析 id/event/data，保留 runId 与最后 seq；只在有 runId 且剩余次数足够时访问恢复 URL。"
+/>
+
+## 流程步骤
+
+1. **fetch 建流，而非 EventSource**  
+   请求加 `Authorization: Bearer <JWT>` 与 `Accept: text/event-stream`。续传请求另加 `Last-Event-ID`；这两个头是选择 fetch 的直接原因。
+
+2. **增量解码与分帧**  
+   `TextDecoder` 把字节块追加到 buffer，只消费完整空行分隔的帧，尾部半帧保留给下一块。每帧抽取 `id`、`event` 与多行 `data`，不能假设一次网络 read 恰好等于一个事件。
+
+3. **按事件类型推进本地状态**  
+   `meta` 取得 `runId`，正常事件推进单调 `lastSeq`；`done` 是唯一正常完成标记；`error` 转为 `StreamServerError`，保留 code、message 与 runId 给 UI。
+
+4. **断流不是 done**  
+   读取结束但没有终态，且拿到了 `runId` 时才尝试恢复。次数用 `resumesLeft` 限制；没有 runId、次数耗尽或取消时抛 `StreamAbortedError`，不让页面把半句回答记作完成。
+
+5. **坏帧可观测但不拖死整流**  
+   未知事件、非法 JSON 或非法 id 交给 `onMalformed`。这使 UI 能记录协议异常，同时避免一个非关键坏帧直接吞掉后续 `done`。
+
+<LogicPair
+  leftTitle="优点"
+  left={
+    <ul>
+      <li>JWT 鉴权和 Last-Event-ID 回放使用同一条客户端链路。</li>
+      <li>断流、服务端 error、用户取消三种终止原因不会混淆。</li>
+      <li>半帧与未知事件被局部隔离，网络分块不影响协议正确性。</li>
+    </ul>
+  }
+  rightTitle="代价"
+  right={
+    <ul>
+      <li>手写解析器比 EventSource 更长，必须有 fixtures 与单测。</li>
+      <li>有限重连不能解决 Redis TTL 到期或服务端永久失败。</li>
+      <li>浏览器仍需处理 token 失效导致的 HTTP 401。</li>
+    </ul>
+  }
+/>
+
+## 应用场景
+
+- 工业页以 JWT 调用 Chat / Agent 流，并在反向代理切换实例后继续同一 run。
+- 页面要区分“用户取消”“服务端显式 error”和“网络意外断开”。
+- 前端测试要稳定构造半帧、坏 JSON 和 error 事件，而非依赖真实模型流。
+
+## 源码落点
+
+<SourceMap
+  items={[
+    {
+      node: 'SSE 解析器',
+      path: 'frontend/src/industrial/lib/sseClient.ts',
+      note: 'fetch、帧解析、有界续传、StreamAbortedError / StreamServerError。',
+    },
+    {
+      node: '测试夹具',
+      path: 'frontend/src/industrial/lib/testing/sseFixtures.ts',
+      note: '构造 meta / done / error 与坏帧。',
+    },
+    {
+      node: '会话 UI',
+      path: 'frontend/src/industrial/panels/ProductionChatPanel.tsx',
+      note: '将 runId、终态和错误映射到页面状态。',
+    },
+    {
+      node: '服务端恢复',
+      path: 'java/.../chat/controller/ProductionChatController.java',
+      note: 'GET /runs/{runId}/stream 读取 Last-Event-ID。',
+    },
+  ]}
+/>
+
+## 设计取舍
+
+| 选择 | 取舍 |
+| --- | --- |
+| fetch + ReadableStream | 可带自定义头；需自己实现 SSE 解析 |
+| done 才成功 | 不吞半截回答；断流需要重试或明确失败 UI |
+| 有界续传 | 防无限重试；极短网络抖动之外仍需用户重开 |
+| 不认识的 event 仅报告 | 保留前向兼容；需要监控 malformed 数量 |
+
+## 刻意不做
+
+- 不把 JWT 放到 URL query，避免日志与历史记录泄露  
+- 不无限重连或把过期 run 当作新对话  
+- 不让客户端自行补造 seq 或 done 事件
+
+源码：[ai-example](https://github.com/Feike1993/ai-example) · industrial SSE client。
