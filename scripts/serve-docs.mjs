@@ -18,7 +18,7 @@ const baseUrl = '/feike-docs/';
 const outDir = path.join(root, 'build');
 const portFlag = process.argv.indexOf('--port');
 const port = Number(
-  (portFlag >= 0 && process.argv[portFlag + 1]) || process.env.PORT || 3000,
+  (portFlag >= 0 && process.argv[portFlag + 1]) || process.env.PORT || 3001,
 );
 
 function redirect(res, location) {

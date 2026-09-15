@@ -1,0 +1,496 @@
+---
+sidebar_position: 1
+title: Prometheus 使用指南
+description: 结合 ai-example 的 Micrometer、Actuator、双实例抓取与 Grafana，理解 Prometheus 的原理、选型、接入、PromQL 和排障
+---
+
+# Prometheus 使用指南
+
+Prometheus 是一个以**数值指标和时间序列**为核心的监控系统。在 ai-example 中，它每 10 秒向两台 Java 应用获取一次指标，把问答次数、工具拒绝、限流和入库任务等数据存下来，供 PromQL 查询与 Grafana 看板使用。
+
+这篇文档以 [ai-example 源码](https://github.com/Feike1993/ai-example) 为依据。项目配置与通用扩展示例会分别说明；镜像版本是项目当前固定的版本，不代表最新版本。
+
+## 1. 项目中的完整数据链路
+
+![ai-example Prometheus 数据链路：双实例抓取、Grafana 查询与工业页安全快照](/diagrams/ai-example/prometheus-chain.svg)
+
+[下载 draw.io 可编辑源文件](/diagrams/ai-example/prometheus-chain.drawio)
+
+每个 Java 进程各自持有一份 registry。业务动作通过 `ProductionMetrics` 写入本实例的 Micrometer，由 Actuator 暴露。图中箭头表示请求方向：Prometheus 发起抓取，Java 返回指标；Grafana 服务端查询 Prometheus，运维浏览器查看 Grafana。工业页使用用户 JWT 读取当前实例的 snapshot，不直接读取 Prometheus。
+
+源码入口：
+
+- [java/build.gradle](https://github.com/Feike1993/ai-example/blob/main/java/build.gradle)：Actuator 与 Prometheus registry 依赖。
+- [application.yml](https://github.com/Feike1993/ai-example/blob/main/java/src/main/resources/application.yml)：context path 和端点暴露配置。
+- [ProductionMetrics.java](https://github.com/Feike1993/ai-example/blob/main/java/src/main/java/com/feike/ai/production/observability/service/ProductionMetrics.java)：业务 Counter、Timer 和快照。
+- [JwtAuthFilter.java](https://github.com/Feike1993/ai-example/blob/main/java/src/main/java/com/feike/ai/production/auth/controller/JwtAuthFilter.java)：抓取 token 与用户 JWT 校验。
+- [prometheus.yml](https://github.com/Feike1993/ai-example/blob/main/deploy/prometheus/prometheus.yml)：双目标抓取。
+- [docker-compose.yml](https://github.com/Feike1993/ai-example/blob/main/docker-compose.yml)：监控服务、挂载与端口。
+- [Grafana 配置](https://github.com/Feike1993/ai-example/tree/main/deploy/grafana)：数据源和工业看板。
+
+## 2. 是什么：把“现在是多少”变成“过去怎样变化”
+
+应用内的 Counter 可以告诉你“这个进程启动后发生过 100 次问答”。但单独读这个数，无法回答过去 5 分钟新增多少次、哪个实例承担更多流量、限流是否突然增多。
+
+Prometheus 定期获取这些数值，并为每次采样记录时间。你便能查询变化趋势、计算速率、比较实例，并根据条件触发告警。其核心能力包括多维标签、主动抓取、时序存储和 PromQL。[官方概览](https://prometheus.io/docs/introduction/overview/)
+
+### 一条时间序列是什么
+
+下面是说明数据模型的示例，数值是假设值：
+
+```text
+prod_tool_denied_total{app="ai-example",job="java",instance="java-a:8080"} 3
+```
+
+- `prod_tool_denied_total`：指标名，表示工具策略拒绝的累计次数。
+- `app`：项目在抓取配置中添加的标签。
+- `job`：抓取任务名，这里是 `java`。
+- `instance`：抓取目标，默认取目标地址。
+- `3`：这次采样读到的值，Prometheus 为它记录采样时间。
+
+**指标名与完整标签集合共同确定一条时间序列。** `java-a:8080` 和 `java-b:8080` 对应不同序列，不能把它们当作同一个进程的 counter。[数据模型](https://prometheus.io/docs/concepts/)
+
+### 它和日志、Trace、审计有什么区别
+
+指标适合回答“多少次、多久、趋势怎样”。日志适合看具体异常和上下文；Trace 适合追踪一次请求跨服务、检索、模型调用的耗时；审计适合记录谁进行了什么操作。
+
+ai-example 已体现这种分工：业务指标走 Prometheus，OTLP metrics export 被关闭；可选 Trace 导出另走 OTLP；审计与 run 时间线由应用接口提供。Prometheus 不保存每一轮问题原文，也不能单凭一个拒绝计数定位某个用户的请求。应用侧的边界见 [可观测与审计](/docs/ai-example/production/ops-audit)。
+
+## 3. 为什么在 ai-example 中选择 Prometheus
+
+以下是根据项目实现分析出的选型理由，而不是声称仓库做过正式的产品评测。
+
+### 接入 Spring Boot 的成本低
+
+项目已经使用 Spring Boot，加入 Actuator 和 Micrometer 的 Prometheus registry，就能把框架指标与自定义业务指标通过同一个端点暴露。业务代码依赖 `MeterRegistry`，不用自己拼接 Prometheus 文本，也不必直接向监控服务器发 HTTP 请求。
+
+### 双实例天然需要按实例观察与聚合
+
+ai-example 的 `java-a` 和 `java-b` 各有自己的 registry。Prometheus 分别抓取它们：排查时按 `instance` 比较负载，观察业务总量时对每个实例先计算增量或速率，再求和。
+
+这比轮询负载均衡入口更可靠：入口轮询可能这次命中 A、下次命中 B，既漏采实例，也把不同计数混成一条曲线。
+
+### 抓取和业务处理解耦
+
+Java 在本机内存记录指标，Prometheus 主动拉取。Prometheus 停机时，业务代码不需要等待它接收数据。不过停机期间没有采样；恢复后可能读到累计变化，但无法还原所有事件的准确时间。
+
+### 指标和看板都可以进入版本管理
+
+`prometheus.yml` 指定目标与认证，Grafana provisioning 指定数据源，看板 JSON 保存查询。新环境启动后可以复用同一套配置，减少手工点击。PromQL 还可以直接表达“最近一分钟增加多少”“过去五分钟平均耗时”。
+
+### 能补足工业页快照的能力
+
+`/api/v1/ops/snapshot` 只读取当前命中实例的安全指标子集，没有历史查询能力。Prometheus 保存多个实例的时序，Grafana 展示变化。两者服务于不同读取场景。
+
+### 选择它要承担什么
+
+需要维护采集端、存储、认证、查询和告警配置。标签过多会扩大存储与查询成本；抓取是采样机制，不是精确的交易流水。需要逐笔可核对的计费、长时间追踪原文或还原每个请求时，应使用对应的业务记录、日志和 Trace。
+
+如果只有单次本地功能调试，读日志与 snapshot 往往就够了；如果主要需求是整条 LLM 调用链追踪，Prometheus 应作为指标层，配合追踪工具使用。
+
+## 4. 应用怎么暴露指标
+
+### 4.1 加入依赖与端点配置
+
+项目 Gradle 依赖：
+
+```groovy
+implementation 'org.springframework.boot:spring-boot-starter-actuator'
+implementation 'io.micrometer:micrometer-registry-prometheus'
+```
+
+项目 YAML 中与指标相关的配置：
+
+```yaml
+server:
+  port: 8080
+  servlet:
+    context-path: /ai-example
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  otlp:
+    metrics:
+      export:
+        enabled: false
+```
+
+因此完整抓取路径是 `/ai-example/actuator/prometheus`。`include` 表示暴露端点；谁有权限读取它，仍由项目认证过滤器控制。
+
+### 4.2 用 Micrometer 记录业务动作
+
+`ProductionMetrics` 中的真实写法：
+
+```java
+this.toolDenied = Counter.builder("prod.tool.denied")
+    .description("工具策略拒绝")
+    .register(registry);
+
+public void toolDenied() {
+    toolDenied.increment();
+}
+```
+
+Counter 在构造时注册，业务发生时增量记录。`prod.tool.denied` 经 registry 转换后暴露为 `prod_tool_denied_total`：点分隔转换成下划线，counter 使用 `_total` 后缀。最终名称应以实际端点输出为准。
+
+项目工具探针会在策略拒绝时调用 `metrics.toolDenied()`。这意味着它计的是**拒绝事件**，不是 HTTP 403 的数量：探针可以返回 HTTP 200，同时响应体为 `denied=true`。
+
+### 4.3 当前有哪些业务指标
+
+`ProductionMetrics` 注册了以下 Counter：
+
+- 调用：`prod_chat_runs_total`、`prod_agent_runs_total`。
+- 检索与策略：`prod_retrieval_empty_total`、`prod_guardrail_blocked_total`、`prod_tool_denied_total`。
+- 入口控制：`prod_rate_limited_total`、`prod_auth_fail_total`。
+- 入库任务：`prod_ingest_submitted_total`、`prod_ingest_succeeded_total`、`prod_ingest_failed_total`。
+- 媒体校验：`prod_media_accepted_total`、`prod_media_rejected_total`。
+
+“问答次数”也需要按埋点位置理解：同步问答在通过限流、未命中幂等缓存后递增，随后模型调用仍可能失败。所以它不是成功次数，也不是所有进入服务器的 HTTP 请求次数。
+
+### 4.4 Counter、Gauge、Histogram、Summary 怎么选
+
+**Counter** 表示累计事件数，只增加，进程重启后可归零。适合问答次数、拒绝次数；分析近期活动应使用 `rate` 或 `increase`。
+
+**Gauge** 表示当前状态，可以升降，例如队列深度、活跃连接数、当前内存使用量。`ProductionMetrics` 的自定义指标目前没有 Gauge；如果要表示“现在有几个待处理任务”，不应使用只增不减的 Counter。
+
+**Histogram** 用桶统计观测值分布，同时提供总量与次数，适合计算可跨实例聚合的延迟分位数。
+
+**Summary** 同样可提供观测总量和次数，还可在应用侧计算配置好的分位数；应用侧计算出来的分位数不能直接跨实例求平均得到全局分位数。[指标类型](https://prometheus.io/docs/concepts/metric_types/)、[直方图与 Summary](https://prometheus.io/docs/practices/histograms/)
+
+Micrometer 的 **Timer** 是计时抽象，不是 Prometheus 的第五种指标类型。项目的 `prod.chat.duration` 记录纳秒，Prometheus 端通常导出秒单位的 `prod_chat_duration_seconds_count`、`_sum` 和 `_max`。`_max` 是时间窗口最大值，不能当作进程启动以来永久最大值。[Micrometer Timer](https://docs.micrometer.io/micrometer/reference/concepts/timers.html)
+
+当前 `recordDuration` 的调用点只在同步问答成功返回后；它没有覆盖全部 SSE、Agent 或失败请求。读图时必须把这个范围带上，不能把它解释成所有问答的端到端耗时。
+
+## 5. Prometheus 怎么抓取
+
+项目实际配置：
+
+```yaml
+global:
+  scrape_interval: 10s
+
+scrape_configs:
+  - job_name: java
+    metrics_path: /ai-example/actuator/prometheus
+    authorization:
+      type: Bearer
+      credentials: dev-metrics-token
+    static_configs:
+      - targets:
+          - java-a:8080
+          - java-b:8080
+        labels:
+          app: ai-example
+```
+
+`job_name` 将目标归入同一任务；`metrics_path` 指定端点；`authorization` 添加抓取请求头；`static_configs` 明确列出目标。这里用静态目标，因为 Compose 服务名和实例数量固定。[抓取配置参考](https://prometheus.io/docs/prometheus/latest/configuration/configuration/)
+
+### 为什么两台都是 8080
+
+Prometheus 位于 Compose 网络内，通过服务名访问容器端口，两台 Java 的容器端口都是 8080。宿主机调试端口则分别为 8080 和 8082。不要把容器目标改成 `localhost:8082`：在 Prometheus 容器里，`localhost` 指的是 Prometheus 自己。
+
+### 为什么 token 要改两处
+
+Compose 为 Java 设置 `PRODUCTION_METRICS_TOKEN`，默认值为 `dev-metrics-token`。Prometheus YAML 则直接写了相同的字符串。它们是两个配置源；修改 `.env` **不会自动替换**挂载 YAML 中的 credentials。
+
+轮换时更新 Java 环境变量及 Prometheus 的认证配置，再重建 Java 容器、重启 Prometheus，并验证两个 targets。匹配独立抓取 token 时，过滤器直接放行；不匹配则进入后续认证逻辑。未配置独立 token 时，代码仍有 JWT 校验路径。
+
+因此，“用户 JWT 与抓取 token 分开”是当前 Compose 采用的运维方式，不应把浏览器 JWT 配进抓取任务。工业页使用 snapshot，运维看板通过 Grafana 服务端查询 Prometheus。
+
+## 6. 从启动到看到第一条业务曲线
+
+下面的命令均在 **ai-example 仓库根目录**执行，使用 Bash/Zsh。需要 Docker、curl 和 jq；默认端口若已改动，相应替换 URL。
+
+### 6.1 准备并启动
+
+按项目环境说明准备 `.env`，配置有效的 `PRODUCTION_KEK`（Base64 编码的 32 字节 key），保持 `PRODUCTION_EVENT_LOG=redis`，确认 metrics token 两边一致。完整双实例前置条件见 [industrial-ops.md](https://github.com/Feike1993/ai-example/blob/main/docs/industrial-ops.md)。
+
+```bash
+COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.dev.yml)
+JAVA_A=http://127.0.0.1:8080/ai-example
+JAVA_B=http://127.0.0.1:8082/ai-example
+
+"${COMPOSE[@]}" config --quiet
+"${COMPOSE[@]}" up -d --build --wait
+"${COMPOSE[@]}" ps
+```
+
+这会启动完整项目栈、创建或更新容器并保留已有数据库和 Redis volume。Prometheus 与 Grafana 没有 Compose healthcheck，所以 `up --wait` 成功还不等于抓取成功。
+
+### 6.2 先确认 Java 端点
+
+```bash
+curl -sS -o /dev/null -w '%{http_code}\n' "$JAVA_A/actuator/prometheus"
+```
+
+匿名请求不能为 200；项目密钥有效时通常为 401，密钥缺失或无效时可能为 503。
+
+专用 token 必须取 Java 当前配置的真实值。下面默认值仅适用于未修改 token 的本地演示；若 `.env` 使用自定义值，请先设置当前 shell 的 `PRODUCTION_METRICS_TOKEN`，因为 shell 不会自动读取 `.env`。
+
+```bash
+METRICS_TOKEN=${PRODUCTION_METRICS_TOKEN:-dev-metrics-token}
+curl -fsS -H "Authorization: Bearer $METRICS_TOKEN" \
+  "$JAVA_A/actuator/prometheus" | rg '^prod_'
+curl -fsS -H "Authorization: Bearer $METRICS_TOKEN" \
+  "$JAVA_B/actuator/prometheus" | rg '^prod_'
+```
+
+应看到业务指标文本；没有业务操作时 Counter 为 0 是正常的。没有安装 rg 时可用 `grep -E '^prod_'`。
+
+### 6.3 再确认两个 targets
+
+```bash
+curl -fsS http://127.0.0.1:9090/api/v1/targets \
+  | jq -e '[.data.activeTargets[] | select(.labels.app == "ai-example") | .health]
+           | length == 2 and all(. == "up")'
+```
+
+应得到 `true`。也可以打开 [Prometheus](http://127.0.0.1:9090)，查看 Targets 页，然后在查询页运行：
+
+```promql
+up{job="java",app="ai-example"}
+```
+
+两条序列都为 1 表示抓取成功；0 表示该目标最近一次抓取失败。`up=1` 只证明端点能被抓取，不证明所有业务功能健康。
+
+### 6.4 用无模型探针产生指标
+
+下面以 alice 调用被策略禁止的工具探针。它不调用 LLM、不执行重建工具，但会增加拒绝计数并写入审计。
+
+```bash
+TOKEN=$(curl -fsS "$JAVA_A/api/v1/auth/token" \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"alice","password":"demo"}' | jq -er '.token')
+
+curl -fsS -X POST "$JAVA_A/api/v1/agent/tool-probe" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"tool":"rebuild_index"}' | jq .
+```
+
+应看到 `allowed=false`、`denied=true`。首次启动时先等两个 targets 有样本，再执行探针；等待至少一个 10 秒抓取周期后查询：
+
+```promql
+prod_tool_denied_total{instance="java-a:8080",app="ai-example"}
+```
+
+A 的 counter 应递增，B 不必改变。最近变化可以用 `increase(...[1m])` 查看；窗口需要有足够样本，首次抓取前发生的事件也无法从增量函数中完整还原。
+
+### 6.5 打开 Grafana
+
+打开 [Grafana](http://127.0.0.1:3000)，默认本地账号密码为 `admin` / `admin`，可以通过 `GRAFANA_USER` / `GRAFANA_PASSWORD` 修改。进入 `Industrial` 文件夹，打开「工业级 /api/v1」，UID 为 `industrial-prod`。
+
+数据源固定为 `http://prometheus:9090`，UID 为 `prometheus`，由 Grafana 服务端访问。不要改成 Grafana 容器里的 `localhost:9090`。
+
+当前看板包含入库投递、限流、问答次数、Agent 次数、工具拒绝、媒体通过和媒体拒绝。查询采用 `increase(指标[1m])`，图例为 `instance`。**它展示的是滚动一分钟增量，不能解释成每秒速率**；部分面板的 `ops` 单位设置不改变查询的数学含义。
+
+## 7. PromQL：用现有指标回答实际问题
+
+以下查询在 Prometheus 查询页或 Grafana Explore 中执行。`[5m]` 是用于计算的最近五分钟采样窗口；Grafana 显示的十五分钟时间范围是另一件事。
+
+### 最近五分钟总共发生多少次工具拒绝
+
+```promql
+sum(increase(prod_tool_denied_total{job="java",app="ai-example"}[5m]))
+```
+
+`increase` 先按实例计算窗口内增长，并处理观测到的 counter 重置，再由 `sum` 聚合。它会对窗口边界外推，所以可能出现小数；它不是逐事件审计计数。[PromQL 函数参考](https://prometheus.io/docs/prometheus/latest/querying/functions/)
+
+### 问答进入业务流程的每秒速率
+
+```promql
+sum(rate(prod_chat_runs_total{job="java",app="ai-example"}[5m]))
+```
+
+单位是次/秒，按前文 `chatRun` 的埋点范围解释。它不是完整 HTTP QPS，也不是成功问答吞吐率。
+
+按实例比较：
+
+```promql
+sum by (instance) (
+  rate(prod_chat_runs_total{job="java",app="ai-example"}[5m])
+)
+```
+
+**先 rate，再 sum。** 先把原始 counter 加在一起再计算速率，可能掩盖其中某个实例的重启归零。
+
+### 最近五分钟同步问答的平均耗时
+
+```promql
+sum(rate(prod_chat_duration_seconds_sum{job="java",app="ai-example"}[5m]))
+/
+sum(rate(prod_chat_duration_seconds_count{job="java",app="ai-example"}[5m]))
+```
+
+分子是每秒累计的耗时，分母是每秒观测次数，相除得到每次平均耗时，单位为秒。这个计算按观测次数加权，不能改成对两个实例平均耗时直接求平均。
+
+窗口内没有耗时记录时，结果可能为 NaN 或没有数据；这应解释为没有观测，不能显示成“耗时 0 秒”。此 Timer 只覆盖当前代码埋点的同步成功返回路径。
+
+### 入库完成结果中失败占多少
+
+```promql
+100 *
+sum(rate(prod_ingest_failed_total{job="java",app="ai-example"}[5m]))
+/
+(
+  sum(rate(prod_ingest_failed_total{job="java",app="ai-example"}[5m]))
+  + sum(rate(prod_ingest_succeeded_total{job="java",app="ai-example"}[5m]))
+)
+```
+
+这是窗口内**完成结果**的失败占比。异步任务投递与完成可能跨窗口，因此不能简单用同一窗口失败数除以投递数当作严格任务失败率。没有完成结果时，比例没有意义。
+
+同理，工具拒绝不能直接除以 Agent 次数得出请求失败率：一次 Agent 可以涉及多个工具，探针又能独立产生拒绝事件。
+
+### 最近是否发生进程计数重置
+
+```promql
+resets(prod_chat_runs_total{job="java",app="ai-example"}[1h])
+```
+
+counter 出现下降可帮助发现重置；如果它在两次采样之间重启并增长到超过旧值，单靠采样仍可能看不到重置。短窗口在刚启动、采样中断时也可能缺乏足够点；10 秒抓取间隔下，先用 1 分钟或 5 分钟窗口排查。
+
+## 8. 为什么当前不能直接算问答 p95
+
+项目 Timer 只调用 `Timer.builder(...).register(registry)`，没有启用 percentile histogram，也没有配置相应的分布桶。只有 `_sum` 和 `_count` 能计算平均值，**无法还原 p95**。
+
+下面是未来扩展的代码示例，当前仓库尚未这样配置：
+
+```java
+Timer.builder("prod.chat.duration")
+    .description("问答耗时")
+    .publishPercentileHistogram()
+    .minimumExpectedValue(java.time.Duration.ofMillis(1))
+    .maximumExpectedValue(java.time.Duration.ofSeconds(120))
+    .register(registry);
+```
+
+范围需要依据实际耗时分布调整；示例的 120 秒不是项目已验证的上限。增加分布桶会增加时间序列数量。还需要先明确要覆盖成功、失败、SSE 或 Agent 哪些路径，并调整记录耗时的位置。
+
+启用并确认端点出现 `prod_chat_duration_seconds_bucket` 后，经典直方图的跨实例 p95 查询才成立：
+
+```promql
+histogram_quantile(
+  0.95,
+  sum by (le) (
+    rate(prod_chat_duration_seconds_bucket{job="java",app="ai-example"}[5m])
+  )
+)
+```
+
+`le` 是桶上界，聚合时必须保留。得到的是桶分布估算的分位数，不是逐条排序的精确值。不能对两个实例各自的 p95 求平均来得到全局 p95。[直方图分位数原理](https://prometheus.io/docs/practices/histograms/)
+
+[k6](/docs/tech-stack/loadtest/k6) 摘要中的 HTTP p95 来自压测客户端，测量范围和这里的应用 Timer 不同；看到 k6 p95 不代表 Prometheus 已拥有直方图。
+
+## 9. 排障：按链路逐层确认
+
+### 端点 404
+
+先核对 `/ai-example` context path 和 `/actuator/prometheus`，再确认 registry 依赖及端点 exposure。项目没有开放所有 Actuator 端点，所以直接访问 `/actuator/metrics` 失败不一定是故障。
+
+### 端点 401 或 target 显示 unauthorized
+
+核对 Java 的 `PRODUCTION_METRICS_TOKEN` 与 Prometheus 的 credentials，包括两实例是否都重建并使用同一值。不要只改 `.env`。自定义 token 的 shell curl 也要使用真实值。
+
+### 匿名端点 503
+
+检查项目 KEK 和 secret availability。过滤器在没有匹配抓取 token 时可能进入密钥可用性检查；503 不一定意味着 Prometheus 配置语法错误。先带正确专用 token 测试，再检查应用日志。
+
+### connection refused 或 DNS 错误
+
+先检查 Java readiness 和容器日志，再核对 Compose 网络内的服务名、8080 端口。宿主机的 Java B 是 8082，但 Prometheus 抓取的 Java B 是 `java-b:8080`。
+
+### target up，但是看板没有数据
+
+依次确认实际端点是否有目标指标、Prometheus 原始查询是否有序列、窗口是否有足够样本、是否发生过对应业务事件，最后检查 Grafana 的数据源 UID、时间范围和标签过滤。`No data` 与 `0` 含义不同，不能直接互相替代。
+
+### A 有数据，B 仍然是 0
+
+若测试请求直接发给 A，这是预期行为。registry 不共享，snapshot 也只来自当前实例。若经过负载均衡入口仍长期偏斜，再检查入口路由与业务流量分布。双实例原理见 [工业级 HA](/docs/ai-example/production/industrial-ha)。
+
+### 修改 YAML 后没有生效
+
+可以先在运行容器中校验挂载配置，再重启 Prometheus：
+
+```bash
+"${COMPOSE[@]}" exec prometheus \
+  promtool check config /etc/prometheus/prometheus.yml
+"${COMPOSE[@]}" restart prometheus
+"${COMPOSE[@]}" logs --tail=100 prometheus
+```
+
+项目没有打开 `--web.enable-lifecycle`，不要默认认为调用 `/-/reload` 就能重载。修改 Java 环境变量后则需要重新创建容器，单纯 `restart` 不会重新读取 Compose 环境变量：
+
+```bash
+"${COMPOSE[@]}" up -d java-a java-b
+```
+
+## 10. 从本地演示扩展到长期运行
+
+这一节是扩展建议，**不是项目已经实现的能力**。
+
+### 持久化与保留期
+
+当前 Compose 只为 Prometheus 挂载配置文件，没有声明命名的数据 volume，也没有显式设置 retention。不能把它当作已有持久化保证，尤其不能依赖容器重建后仍保留时序数据。
+
+通用扩展示例：在已有服务配置中保留原有配置挂载、端口和依赖，补充数据卷及启动参数，并在顶层 `volumes` 声明数据卷。
+
+```yaml
+services:
+  prometheus:
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+volumes:
+  prometheus_data:
+```
+
+保留期与容量应根据样本数量、磁盘预算和恢复需求配置；本地 TSDB 也不等于分布式长期存储，需要更长历史或更高可靠性时再评估 remote write 等方案。[存储文档](https://prometheus.io/docs/prometheus/latest/storage/)
+
+### 告警需要另行配置
+
+当前仓库的这份 Prometheus 配置没有 `rule_files` 和 Alertmanager 接入，现有 Grafana JSON 也是看板配置，不能理解成已有告警通知。
+
+最小的目标抓取失败规则示例：
+
+```yaml
+groups:
+  - name: ai-example-targets
+    rules:
+      - alert: AiExampleScrapeDown
+        expr: up{job="java",app="ai-example"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ai-example Java 目标持续抓取失败"
+```
+
+要真正启用，应把规则文件挂进容器，在 `prometheus.yml` 添加对应 `rule_files`，通过 promtool 校验并重载配置。通知还需配置 Alertmanager 或 Grafana Alerting。`for: 1m` 用于避免一次瞬时抓取失败就触发持续故障告警；目标被移出配置时不会产生 `up=0`，还需要另外监控目标缺失。
+
+### 控制标签数量与指标读取权限
+
+新增标签时优先使用值域有限的维度，例如固定 `result` 枚举、少量 `provider`。不要将 `userId`、`sessionId`、`runId`、完整问题或任意 URL 作为指标标签：每种组合都可能产生新序列，扩大成本，也可能暴露隐私。[埋点实践](https://prometheus.io/docs/practices/instrumentation/)
+
+项目自定义 Counter 没有业务标签，实例标签由抓取端补充。将来加标签时，应同时定义统计口径、可能值与聚合方式。
+
+Java 抓取 token 只保护 Java 指标端点，不自动保护 Prometheus 自身的查询页面和 API。当前演示 Compose 映射 9090，并使用开发 token 与默认 Grafana 账号；长期运行应另行限制网络入口、配置认证和安全传输，使用独立密钥管理抓取凭据。
+
+## 11. 实际接入时的检查顺序
+
+1. 明确要回答的业务问题，定义事件次数、当前状态或耗时范围。
+2. 在应用层选择 Counter、Gauge 或 Timer，检查成功、失败、缓存和重试路径的埋点口径。
+3. 确认 Actuator 输出的实际指标名、单位与认证要求。
+4. 让 Prometheus 直接抓取每个实例，验证两个 targets 和原始序列。
+5. 写窗口增量、速率、耗时与比例查询，再加入 Grafana 看板。
+6. 对长期运行补充数据持久化、告警、入口权限与标签数量控制。
+
+相关实践：[可观测与审计](/docs/ai-example/production/ops-audit)、[工业级 HA](/docs/ai-example/production/industrial-ha)、[Redis 令牌桶](/docs/ai-example/production/redis-token-bucket)、[k6 压测](/docs/tech-stack/loadtest/k6)。

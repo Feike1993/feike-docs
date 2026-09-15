@@ -42,7 +42,7 @@ import LogicPair from '@site/src/components/ArchitectureDiagram/LogicPair';
    `GET /ops/snapshot` 返回问答次数、空检索、护栏、工具拒绝、入库任务等 `prod_*` 计数。匿名打 `/actuator/prometheus` **不是** 200。
 
 2. **刮取**  
-   Compose 里 Prometheus 的 Bearer 必须与 `PRODUCTION_METRICS_TOKEN` 一致。改 token 要两边一起改。云托管 Grafana 本仓不做。
+   Compose 里 Prometheus 的 Bearer 必须与 `PRODUCTION_METRICS_TOKEN` 一致。改 token 要两边一起改。云托管 Grafana 本仓不做。完整的接入步骤、PromQL 查询与排障见 [Prometheus 使用指南](/docs/tech-stack/observability/prometheus)。
 
 3. **审计**  
    登录、工具探针、媒体探针都会落 `prod_audit_log`。问题只存 sha256。写入在虚拟线程里，失败只打日志，**绝不改变**业务响应——审计挂了不能让问答 500。

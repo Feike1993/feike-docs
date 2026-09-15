@@ -2,7 +2,7 @@
  * 全站抽检：文档页正文没被换成首页，Archify iframe 指向的 HTML 也不是首页。
  *
  * 用法：
- *   pnpm serve --port 3000   # 另开终端
+ *   pnpm serve               # 另开终端，默认端口 3001
  *   pnpm check:pages
  *
  * 覆盖：sitemap 全部 loc + MDX 里每一处 ArchifyEmbed src。
@@ -14,7 +14,7 @@ import {fileURLToPath} from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const baseUrl = '/feike-docs';
-const origin = (process.env.CHECK_ORIGIN || 'http://127.0.0.1:3000').replace(/\/$/, '');
+const origin = (process.env.CHECK_ORIGIN || 'http://127.0.0.1:3001').replace(/\/$/, '');
 const site = `${origin}${baseUrl}`;
 
 const HOME_MARKERS = ['资深 Java 开发', '主导日处理 1 亿+'];
