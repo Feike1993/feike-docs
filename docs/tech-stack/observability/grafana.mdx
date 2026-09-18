@@ -1,0 +1,230 @@
+---
+sidebar_position: 2
+title: Grafana 使用指南
+description: 基于 ai-example 的 Grafana Provisioning 与 Industrial 看板，说明数据链路、集成、使用、看板演进与排障
+---
+
+# Grafana 使用指南
+
+[Grafana](https://grafana.com/docs/grafana/latest/) 是把数据源中的时序查询组织成面板、看板和告警的可视化平台。在 ai-example 中，它**不采集数据，也不让浏览器直连 Java Actuator**：Grafana 服务端向 Prometheus 发送 PromQL，再将结果渲染成工业级运行趋势。
+
+本文以 [ai-example 源码](https://github.com/Feike1993/ai-example) 的当前 Compose 与 Provisioning 文件为准；文中“扩展示例”会明确标出，并非项目已启用的能力。
+
+## 1. ai-example 中的数据流程
+
+![ai-example 的 Grafana 数据流程：Java 指标、Prometheus 抓取、Grafana 查询与浏览器看板](/diagrams/ai-example/prometheus-chain.svg)
+
+[下载 draw.io 可编辑源文件](/diagrams/ai-example/prometheus-chain.drawio)
+
+链路按职责分成四步：
+
+1. 两个 Java 实例在本进程 Micrometer registry 中记录 `prod_*` Counter 与 Timer，并由 `/ai-example/actuator/prometheus` 暴露。
+2. Prometheus 每 10 秒携带独立 Bearer token，分别抓取 `java-a:8080` 与 `java-b:8080`；它保存带 `instance` 标签的时间序列。
+3. Grafana 容器通过 Docker 网络访问 `http://prometheus:9090`，根据面板的 PromQL 查询时序数据。
+4. 运维人员登录 Grafana，在浏览器中查看已渲染的看板。工业页另走用户 JWT → `/api/v1/ops/snapshot`，只返回当前命中实例的安全指标子集，**不是 Grafana 的替代入口**。
+
+因此箭头方向很重要：Prometheus 主动抓 Java；Grafana 主动查 Prometheus；浏览器只查 Grafana。用户 JWT 不能用于抓取 Actuator，Grafana 数据源也不应填浏览器可达的 Java 端点。
+
+相关源码：
+
+- [Grafana 数据源 Provisioning](https://github.com/Feike1993/ai-example/blob/main/deploy/grafana/provisioning/datasources/datasource.yml)
+- [看板 Provisioning](https://github.com/Feike1993/ai-example/blob/main/deploy/grafana/provisioning/dashboards/dashboards.yml)
+- [工业看板 JSON](https://github.com/Feike1993/ai-example/blob/main/deploy/grafana/dashboards/industrial.json)
+- [Prometheus 抓取配置](https://github.com/Feike1993/ai-example/blob/main/deploy/prometheus/prometheus.yml)
+- [Compose 中的 Grafana 服务](https://github.com/Feike1993/ai-example/blob/main/docker-compose.yml)
+
+## 2. 为什么这里需要 Grafana
+
+Prometheus 的查询页适合验证某一条 PromQL；Grafana 适合把多个查询固定成一个可复用的运行视图：统一时间范围、以 `instance` 区分两台 Java、按业务名称展示，并可将配置放进版本控制。
+
+它能回答“最近一段时间工具拒绝是否上升”“A、B 两个实例是否都有流量”“媒体拒绝是否集中出现”。它不适合保存用户问题原文、精确审计单次请求，或替代全链路 Trace；这些分别应由审计、日志和追踪系统承担。
+
+当前项目刻意只提供本机看板：没有云托管 Grafana、没有已配置的 Grafana Alerting，也没有为 Grafana 声明持久化数据卷。不要把已有看板 JSON 误认为告警、长期保存或多租户隔离已经完成。
+
+## 3. 如何集成：用 Provisioning 固化数据源和看板
+
+### 3.1 Compose 服务与安全边界
+
+项目将 Grafana 容器的 `3000` 端口映射到宿主机 `${GRAFANA_PORT:-3300}`，默认访问地址是 [http://127.0.0.1:3300](http://127.0.0.1:3300)。本地默认账户为 `admin` / `admin`；可在启动前设置 `GRAFANA_USER` 与 `GRAFANA_PASSWORD`。注册与匿名访问均关闭。
+
+```yaml
+grafana:
+  image: grafana/grafana:11.6.0
+  environment:
+    GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+    GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    GF_USERS_ALLOW_SIGN_UP: "false"
+    GF_AUTH_ANONYMOUS_ENABLED: "false"
+  ports:
+    - "${GRAFANA_PORT:-3300}:3000"
+  volumes:
+    - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+    - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+```
+
+默认账号仅适合本地演示。要暴露给他人或长期运行时，应更换强密码、限制入口网络并启用 HTTPS；Prometheus 的查询 API 也需要独立的访问控制，Java 指标 token 不会自动保护它。
+
+### 3.2 固定 Prometheus 数据源
+
+`deploy/grafana/provisioning/datasources/datasource.yml` 由容器启动时读取：
+
+```yaml
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    uid: prometheus
+    isDefault: true
+    editable: false
+```
+
+`access: proxy` 表示查询由 Grafana 服务端发出；`prometheus` 是 Compose 网络中的服务名。**不要写成 `localhost:9090`**：在 Grafana 容器里，`localhost` 指向 Grafana 自己，不是 Prometheus。稳定的 `uid: prometheus` 让看板 JSON 能明确绑定数据源，而不是依赖界面中可变的名称。
+
+### 3.3 自动加载 Industrial 看板
+
+看板 provider 将容器目录 `/var/lib/grafana/dashboards` 映射为 `Industrial` 文件夹，并每 30 秒检查一次文件变化：
+
+```yaml
+providers:
+  - name: industrial
+    orgId: 1
+    folder: Industrial
+    type: file
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
+```
+
+`deploy/grafana/dashboards/industrial.json` 的 UID 是 `industrial-prod`，标题是「工业级 /api/v1」。将 JSON 与 Provisioning 一起提交，新的本地环境启动后无需手工创建数据源或逐面板粘贴查询。
+
+## 4. 从零启动并验证集成
+
+在 ai-example 根目录执行：
+
+```bash
+COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.dev.yml)
+"${COMPOSE[@]}" config --quiet
+"${COMPOSE[@]}" up -d --build --wait
+"${COMPOSE[@]}" ps
+```
+
+`up --wait` 只等待声明了 healthcheck 的服务；Prometheus 和 Grafana 当前没有 Compose healthcheck。因此还应逐层确认：
+
+```bash
+# 1) Prometheus 必须已发现两个 Java target
+curl -fsS http://127.0.0.1:9090/api/v1/targets \
+  | jq -e '[.data.activeTargets[] | select(.labels.app == "ai-example") | .health]
+           | length == 2 and all(. == "up")'
+
+# 2) 检查 Grafana 容器是否能启动并读取 Provisioning
+"${COMPOSE[@]}" logs --tail=100 grafana
+```
+
+第一条应返回 `true`。然后登录 [Grafana](http://127.0.0.1:3300)，进入 `Industrial` 文件夹，打开「工业级 /api/v1」。如果改了 `GRAFANA_PORT`，对应替换浏览器端口。
+
+首次启动且没有业务行为时，面板出现 `0` 或 `No data` 都可能正常：前者表示已经抓到序列但窗口内无新增，后者常表示窗口内尚无足够采样点或没有匹配序列。先等待至少一个 10 秒抓取周期，再产生一个可观测业务事件。
+
+## 5. 如何使用现有看板
+
+看板默认时间范围为最近 15 分钟，全部为 Time series 面板；每条线按 `{{instance}}` 分开。当前面板与查询如下：
+
+| 面板 | 查询 | 正确解读 |
+| --- | --- | --- |
+| 入库投递 | `increase(prod_ingest_submitted_total[1m])` | 每实例滚动 1 分钟新增投递数 |
+| 限流 | `increase(prod_rate_limited_total[1m])` | 每实例滚动 1 分钟被限流事件 |
+| 问答次数 | `increase(prod_chat_runs_total[1m])` | 进入当前埋点范围的问答，不等于 HTTP QPS 或成功问答数 |
+| Agent 次数 | `increase(prod_agent_runs_total[1m])` | 每实例 Agent 执行事件 |
+| 工具拒绝 | `increase(prod_tool_denied_total[1m])` | 策略拒绝事件；探针可返回 HTTP 200 |
+| 媒体通过 / 拒绝 | `increase(prod_media_accepted_total[1m])` / `increase(prod_media_rejected_total[1m])` | 媒体校验结果事件 |
+
+`increase(...[1m])` 的单位是**过去一分钟的增量**，不是“每秒”。面板的 `ops` 显示单位不会改变查询的数学含义。Counter 会在进程重启后归零，使用 `increase` 或 `rate` 才能正确按窗口观察变化；跨实例统计时应先对每条原始 Counter 计算 `rate` / `increase`，再聚合。
+
+### 5.1 在 Explore 里验证一个面板
+
+打开左侧 **Explore**，选择 Prometheus 数据源，输入：
+
+```promql
+sum by (instance) (
+  increase(prod_tool_denied_total{job="java",app="ai-example"}[5m])
+)
+```
+
+这会把窗口扩为 5 分钟，适合首次检查。若结果存在两条序列，回到看板选择对应时间范围后可确认“工具拒绝”面板的 `instance` 线。Explore 用于验证原始查询；看板用来持续对比固定的一组业务信号。
+
+### 5.2 用无模型探针制造可验证事件
+
+以下操作不会调用 LLM，也不执行索引重建；它会增加工具拒绝指标。等待一次抓取后再刷新看板：
+
+```bash
+JAVA_A=http://127.0.0.1:8080/ai-example
+TOKEN=$(curl -fsS "$JAVA_A/api/v1/auth/token" \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"alice","password":"demo"}' | jq -er '.token')
+
+curl -fsS -X POST "$JAVA_A/api/v1/agent/tool-probe" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"tool":"rebuild_index"}' | jq .
+```
+
+预期响应含 `allowed=false` 与 `denied=true`。请求只发给 Java A 时，A 的线增长而 B 不变是预期行为；两个实例的 Micrometer registry 不共享。
+
+## 6. 怎样新增或修改一个面板
+
+不要先在 UI 里随手改完再忘记导出。此项目的可复现方式是直接修改 `deploy/grafana/dashboards/industrial.json`，保持：
+
+- `datasource.uid` 为 `prometheus`；
+- 面板 `id` 在同一 JSON 中唯一；
+- 查询带上 `job="java",app="ai-example"`，避免未来混入其他 target；
+- 多实例 Counter 先计算窗口函数再 `sum`；
+- 业务事件的标签值有限，绝不把 `userId`、`sessionId`、`runId`、问题文本写入指标标签。
+
+例如新增“最近 5 分钟工具拒绝总数”时，可使用 Stat 面板和下列查询：
+
+```promql
+sum(
+  increase(prod_tool_denied_total{job="java",app="ai-example"}[5m])
+)
+```
+
+这表示估算的窗口增量，可能因 Counter 重置处理与窗口边界外推而是小数；它不是审计表的逐条精确计数。修改 JSON 后，provider 最多约 30 秒发现文件更新；若本地挂载行为或容器状态不确定，可重建 Grafana：
+
+```bash
+"${COMPOSE[@]}" up -d grafana
+"${COMPOSE[@]}" logs --tail=100 grafana
+```
+
+项目的 `prod_chat_duration` 当前只导出 `_sum` 和 `_count`，没有 histogram bucket，所以可以计算平均耗时，不能画可靠的 p95。要支持 p95，必须先在应用 Timer 启用 histogram 并确认端点出现 `_bucket`，再用 `histogram_quantile`；详情见 [Prometheus 使用指南](/docs/tech-stack/observability/prometheus#8-为什么当前不能直接算问答-p95)。
+
+## 7. 常见问题与排查顺序
+
+### Grafana 登录页打不开
+
+先看 `docker compose ... ps` 中 Grafana 是否运行，再检查宿主端口。默认是 `3300:3000`，不是宿主机 3000；端口冲突时可设置未占用的 `GRAFANA_PORT` 后重新创建服务。
+
+### 看板存在但所有面板 No data
+
+按顺序检查：Prometheus Targets 是否两个都是 `up` → 在 Prometheus 查询页执行同一 PromQL 是否有序列 → Grafana 数据源 UID 是否 `prometheus` → 时间范围、标签和窗口内是否有样本 → 是否真的发生过对应业务事件。`No data` 不能武断替换成 0。
+
+### Grafana 数据源连接失败
+
+数据源 URL 要是 `http://prometheus:9090`，而不是 Grafana 容器内的 `localhost:9090`。随后检查两服务是否都在同一 Compose 项目网络，并查看 `grafana`、`prometheus` 的最近日志。
+
+### 改完 JSON 后界面没有变化
+
+确认改的是被挂载的 `deploy/grafana/dashboards/industrial.json`，JSON 格式正确，并等待 provider 的 30 秒扫描。仍无变化时执行 `docker compose ... up -d grafana` 并查看日志；不要只刷新浏览器就假定容器已读取新文件。
+
+### 想要告警通知
+
+当前仓库没有配置 Alertmanager、Prometheus rule files 或 Grafana Alerting。需要先定义可行动的阈值、持续时间、负责人和通知渠道，再选择 Prometheus + Alertmanager 或 Grafana Alerting 实现；这属于后续扩展，不应声称现有看板会自动通知。
+
+## 8. 与 ai-example 其他观测面的边界
+
+- **Grafana + Prometheus**：跨实例、可按时间回看业务指标。
+- **`/api/v1/ops/snapshot`**：给工业页的安全指标子集，只来自当前命中实例。
+- **审计与 run 时间线**：定位具体操作与步骤，但不保存问题原文，跨租户不可见。
+- **Jaeger Trace**：观察一次调用的链路与耗时；不是 Grafana 看板中的业务计数。
+
+实践时先确认要回答的是趋势、当前状态、一次请求细节还是访问审计，再选对应的观测面。完整的埋点口径、Prometheus 抓取、PromQL 与指标类型说明见 [Prometheus 使用指南](/docs/tech-stack/observability/prometheus)，应用侧的安全边界见 [可观测与审计](/docs/ai-example/production/ops-audit)。

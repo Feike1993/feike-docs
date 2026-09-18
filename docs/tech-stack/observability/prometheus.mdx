@@ -281,7 +281,7 @@ A 的 counter 应递增，B 不必改变。最近变化可以用 `increase(...[1
 
 ### 6.5 打开 Grafana
 
-打开 [Grafana](http://127.0.0.1:3000)，默认本地账号密码为 `admin` / `admin`，可以通过 `GRAFANA_USER` / `GRAFANA_PASSWORD` 修改。进入 `Industrial` 文件夹，打开「工业级 /api/v1」，UID 为 `industrial-prod`。
+打开 [Grafana](http://127.0.0.1:3300)，默认本地账号密码为 `admin` / `admin`，可以通过 `GRAFANA_USER` / `GRAFANA_PASSWORD` 修改。Compose 将容器的 3000 端口默认映射到宿主机 3300；若设置了 `GRAFANA_PORT`，请使用对应端口。进入 `Industrial` 文件夹，打开「工业级 /api/v1」，UID 为 `industrial-prod`。完整的集成、使用和看板维护说明见 [Grafana 使用指南](/docs/tech-stack/observability/grafana)。
 
 数据源固定为 `http://prometheus:9090`，UID 为 `prometheus`，由 Grafana 服务端访问。不要改成 Grafana 容器里的 `localhost:9090`。
 
