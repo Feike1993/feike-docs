@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" role="img" aria-labelledby="title desc">
+  <title id="title">ai-example Jaeger Trace 数据流程</title>
+  <desc id="desc">工业页请求 Java 实例，Spring Boot Trace 通过 OTLP 发送至 Jaeger；traceId 回传给工业页并可深链到 Jaeger UI。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#2563eb"/></marker>
+    <marker id="dashArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#7c3aed"/></marker>
+    <style>
+      .t{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;fill:#172554}.h{font-size:25px;font-weight:700}.n{font-size:19px;font-weight:700}.s{font-size:15px;fill:#475569}.l{font-size:15px;fill:#1d4ed8;font-weight:600}.p{fill:#eff6ff;stroke:#2563eb;stroke-width:2}.g{fill:#f0fdf4;stroke:#16a34a;stroke-width:2}.o{fill:#fff7ed;stroke:#ea580c;stroke-width:2}.v{fill:#f5f3ff;stroke:#7c3aed;stroke-width:2}.line{fill:none;stroke:#2563eb;stroke-width:2.5;marker-end:url(#arrow)}.dash{fill:none;stroke:#7c3aed;stroke-width:2.5;stroke-dasharray:8 6;marker-end:url(#dashArrow)}
+    </style>
+  </defs>
+  <rect width="1200" height="700" fill="#fff" rx="18"/>
+  <text x="55" y="62" class="t h">ai-example · Jaeger Trace 数据流程</text>
+  <text x="55" y="92" class="t s">Trace 经 OTLP 导出；指标仍走 Prometheus，浏览器只查询 Jaeger UI。</text>
+
+  <rect x="55" y="175" width="190" height="100" rx="14" class="p"/>
+  <text x="150" y="217" text-anchor="middle" class="t n">工业页 / API 客户端</text>
+  <text x="150" y="246" text-anchor="middle" class="t s">HTTP · SSE 请求</text>
+
+  <rect x="335" y="175" width="210" height="100" rx="14" class="g"/>
+  <text x="440" y="217" text-anchor="middle" class="t n">Java A / Java B</text>
+  <text x="440" y="246" text-anchor="middle" class="t s">当前请求 Span</text>
+
+  <rect x="635" y="175" width="205" height="100" rx="14" class="g"/>
+  <text x="737" y="214" text-anchor="middle" class="t n">Micrometer Tracing</text>
+  <text x="737" y="245" text-anchor="middle" class="t s">OpenTelemetry bridge</text>
+
+  <rect x="930" y="175" width="210" height="100" rx="14" class="o"/>
+  <text x="1035" y="217" text-anchor="middle" class="t n">Jaeger Collector</text>
+  <text x="1035" y="246" text-anchor="middle" class="t s">OTLP HTTP :4318</text>
+
+  <path d="M245 225 H325" class="line"/><text x="285" y="205" text-anchor="middle" class="t l">请求</text>
+  <path d="M545 225 H625" class="line"/><text x="585" y="205" text-anchor="middle" class="t l">创建 / 续接 Span</text>
+  <path d="M840 225 H920" class="line"/><text x="880" y="205" text-anchor="middle" class="t l">OTLP /v1/traces</text>
+
+  <rect x="930" y="410" width="210" height="100" rx="14" class="o"/>
+  <text x="1035" y="452" text-anchor="middle" class="t n">Jaeger UI</text>
+  <text x="1035" y="481" text-anchor="middle" class="t s">浏览器查询 :16686</text>
+  <path d="M1035 275 V400" class="line"/><text x="1055" y="347" class="t l">存储并检索 Trace</text>
+
+  <rect x="55" y="410" width="490" height="100" rx="14" class="v"/>
+  <text x="300" y="450" text-anchor="middle" class="t n">关联 ID 回传（不写入 Trace）</text>
+  <text x="300" y="480" text-anchor="middle" class="t s">traceparent 响应头 · SSE meta.traceId · /trace/{traceId} 深链</text>
+  <path d="M440 275 V355 H300 V400" class="dash"/>
+  <path d="M545 460 H920" class="dash"/><text x="732" y="442" text-anchor="middle" class="t" style="font-size:15px;fill:#6d28d9;font-weight:600">工业页通过 traceId 打开对应 Trace</text>
+
+  <rect x="55" y="580" width="1085" height="62" rx="12" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="80" y="618" class="t s"><tspan font-weight="700" fill="#0f172a">边界：</tspan>Prometheus 拉取指标；Jaeger 只接收已采样 Trace；审计与 runId 是独立业务观测面。</text>
+</svg>

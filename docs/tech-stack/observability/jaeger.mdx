@@ -1,0 +1,221 @@
+---
+sidebar_position: 3
+title: Jaeger Trace 使用指南
+description: 基于 ai-example 的 Spring Boot、OpenTelemetry OTLP 与 Jaeger all-in-one，说明 Trace 数据流程、集成、查看与排障
+---
+
+# Jaeger Trace 使用指南
+
+[Jaeger](https://www.jaegertracing.io/docs/) 是分布式追踪系统：它把同一请求在服务中的操作关联成一条 Trace，再用 Span 展示每一步发生在哪里、耗时多久。在 ai-example 中，Jaeger 用来观察一次工业级请求的链路；业务次数和趋势仍由 Prometheus + Grafana 负责，审计和 SSE run 时间线也不是 Jaeger 的替代品。
+
+本文以 [ai-example 源码](https://github.com/Feike1993/ai-example) 当前的 Compose、Spring Boot 配置与工业页实现为依据。项目默认**不导出** Trace，因此“不启动 Jaeger 也能运行”是预期行为。
+
+## 1. ai-example 的 Trace 数据流程
+
+![ai-example Jaeger Trace 数据流程：工业页请求 Java，Trace 经 OTLP 导出到 Jaeger，并以 traceId 深链回 UI](/diagrams/ai-example/jaeger-trace-flow.svg)
+
+完整链路分为六步：
+
+1. 客户端请求 Java A 或 Java B；Spring Boot 的 tracing 自动配置为当前请求建立或续接 Span。
+2. `micrometer-tracing-bridge-otel` 将 Micrometer Tracing 接到 OpenTelemetry，OTLP exporter 将已采样 Trace 发给 Jaeger Collector。
+3. Collector 使用 OTLP/HTTP 的 `4318` 端口接收 `/v1/traces`；Jaeger UI 使用 `16686` 端口供浏览器检索。
+4. 工业级聊天与 Agent 接口从当前 Span 取出 trace ID，响应头写入 W3C `traceparent`；流式 `meta` 事件也会携带 `traceId`。
+5. 工业页将最近的 trace ID 暂存在浏览器会话中，并生成 `http://localhost:16686/trace/{traceId}` 深链。
+6. 运维人员在 Jaeger UI 中按服务或 trace ID 查看时间线与 Span 详情。
+
+注意：图中虚线是“把关联 ID 回传给调用方”，不是浏览器把 Trace 写入 Jaeger。浏览器不需要、也不应持有 OTLP 导出权限。
+
+相关源码：
+
+- [Java 依赖](https://github.com/Feike1993/ai-example/blob/main/java/build.gradle)：Micrometer Tracing bridge、OTLP exporter 与 Spring Boot OpenTelemetry starter。
+- [应用 tracing 配置](https://github.com/Feike1993/ai-example/blob/main/java/src/main/resources/application.yml)：采样率、导出开关和 OTLP URL。
+- [Compose 中的 Jaeger 服务](https://github.com/Feike1993/ai-example/blob/main/docker-compose.yml)：all-in-one、Collector 与 UI 端口。
+- [聊天接口回传 traceparent](https://github.com/Feike1993/ai-example/blob/main/java/src/main/java/com/feike/ai/production/chat/controller/ProductionChatController.java)：从当前 Span 读取 ID。
+- [工业页 Jaeger 深链](https://github.com/Feike1993/ai-example/blob/main/frontend/src/industrial/panels/ObservabilityPanel.tsx)：最近 trace ID 与跳转入口。
+
+## 2. Trace、指标、审计分别解决什么问题
+
+| 观测面 | 最适合回答的问题 | ai-example 中的入口 |
+| --- | --- | --- |
+| Jaeger Trace | “这一次请求经过了哪些步骤、哪一步慢？” | Jaeger UI 与 `traceId` 深链 |
+| Prometheus + Grafana | “最近 15 分钟拒绝是否增加、两实例流量是否不均？” | `/ai-example/actuator/prometheus` → Prometheus → Grafana |
+| snapshot | “工业页上可安全展示的当前实例计数是多少？” | `GET /api/v1/ops/snapshot` |
+| 审计 / run 时间线 | “谁做了什么、SSE 的业务步骤是什么？” | `/api/v1/ops/audit`、`/api/v1/ops/runs/{runId}` |
+
+Trace 不是逐条审计日志：它不应承载用户问题原文、JWT、API key 或任意高基数业务字段。当前应用没有为每个业务动作手工创建自定义 Span，因此不要把 Jaeger UI 中自动生成的 HTTP/框架 Span 解读为已经完成了 RAG、模型、工具和数据库的全链路业务埋点。
+
+## 3. 如何集成：应用、Collector 和 UI
+
+### 3.1 Java 侧依赖与默认配置
+
+项目已加入以下依赖：
+
+```groovy
+implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+implementation 'org.springframework.boot:spring-boot-starter-opentelemetry'
+```
+
+`application.yml` 的关键配置是：
+
+```yaml
+management:
+  tracing:
+    sampling:
+      probability: ${OTEL_SAMPLE_PROBABILITY:1.0}
+    export:
+      otlp:
+        enabled: ${OTEL_TRACING_EXPORT:false}
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${APP_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+  otlp:
+    metrics:
+      export:
+        enabled: false
+  logging:
+    export:
+      otlp:
+        enabled: false
+```
+
+含义如下：
+
+- `OTEL_SAMPLE_PROBABILITY` 是采样概率；本地默认 `1.0`，即尽量采样所有请求。生产环境应依据吞吐、存储与排障需求调整，而不是无条件全采样。
+- `OTEL_TRACING_EXPORT=false` 是默认值；即使应用能创建当前 Span，也不会尝试向未启动的 Jaeger 导出，避免 `Failed to export spans` 错误日志。
+- `APP_OTLP_TRACES_ENDPOINT` 必须是完整 trace 接收路径，例如 `http://jaeger:4318/v1/traces`（Compose 网络）或 `http://localhost:4318/v1/traces`（宿主机直跑 Java）。
+- metrics 与日志的 OTLP 导出都关闭；本项目的指标走 Prometheus pull，不应把 Jaeger all-in-one 当作指标后端。
+
+**不要用 `OTEL_EXPORTER_OTLP_ENDPOINT` 替代项目的 `APP_OTLP_TRACES_ENDPOINT`。** 当前 Spring Boot/OpenTelemetry 配置会将前者视为基础 URL 并自行追加 `/v1/traces`；若把完整路径塞进该变量，可能形成重复路径并导致 Jaeger 返回 404。README 中较早的示例若仍出现该变量，应以当前 `application.yml` 为准。
+
+### 3.2 Jaeger all-in-one 容器
+
+项目 Compose 配置：
+
+```yaml
+jaeger:
+  image: jaegertracing/all-in-one:1.66.0
+  environment:
+    COLLECTOR_OTLP_ENABLED: "true"
+  ports:
+    - "${JAEGER_UI_PORT:-16686}:16686"
+```
+
+基础 Compose 只暴露 UI；开发叠加文件再将 Collector 映射给宿主机：
+
+```yaml
+jaeger:
+  ports:
+    - "${JAEGER_OTLP_PORT:-4318}:4318"
+```
+
+容器内 Java 使用 `http://jaeger:4318/v1/traces`，因为 `jaeger` 是 Docker DNS 服务名。宿主机上运行 `./gradlew bootRun` 时，才使用 `http://localhost:4318/v1/traces`。不要混用两种网络视角。
+
+## 4. 启动与验证
+
+### 4.1 用 Compose 启动完整链路
+
+在 ai-example 根目录：
+
+```bash
+COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.dev.yml)
+"${COMPOSE[@]}" config --quiet
+OTEL_TRACING_EXPORT=true "${COMPOSE[@]}" up -d --build --wait
+"${COMPOSE[@]}" ps
+"${COMPOSE[@]}" logs --tail=100 jaeger
+```
+
+这里的环境变量只作用于这一次 Compose 命令；长期本地配置可写入未提交的 `.env`。Jaeger 当前没有 Compose healthcheck，因此 `up --wait` 成功不等于 Collector 已经收到 Trace；仍需发起一次请求并在 UI 验证。
+
+### 4.2 Java 直跑时启动 Jaeger
+
+若 Java 在宿主机通过 `./gradlew bootRun` 启动，只需启动 Jaeger 及其开发端口映射，并让 Java 使用宿主机 Collector：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d jaeger
+export OTEL_TRACING_EXPORT=true
+export APP_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces
+cd java && ./gradlew bootRun
+```
+
+若 Java 已经在运行，修改环境变量不会热生效，必须重启该 Java 进程。反过来，想停用导出时设 `OTEL_TRACING_EXPORT=false` 并重启即可；无需删除 Jaeger 容器。
+
+### 4.3 产生一条可查看的 Trace
+
+先请求一个需要 JWT 的工业接口。下面的 snapshot 请求不调用模型，适合确认“应用 → Collector → UI”基础链路：
+
+```bash
+JAVA_A=http://127.0.0.1:8080/ai-example
+TOKEN=$(curl -fsS "$JAVA_A/api/v1/auth/token" \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"alice","password":"demo"}' | jq -er '.token')
+
+curl -i -fsS "$JAVA_A/api/v1/ops/snapshot" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+随后打开 [Jaeger UI](http://127.0.0.1:16686)。服务名通常来自 `spring.application.name`，当前为 `ai-example`；选择服务后搜索最近 Trace。若请求的是聊天或 Agent 接口，响应头还会带 `traceparent`，格式为 `00-{traceId}-{spanId}-01`。可从中取第二段 32 位 trace ID 并打开：
+
+```text
+http://127.0.0.1:16686/trace/{traceId}
+```
+
+对于 SSE，工业页会从 `meta.traceId` 记住最近 ID，并在“可观测”面板提供“在 Jaeger 中打开”链接。该链接只在服务端实际提供了当前 Span 且流式 meta 成功携带 ID 时出现。
+
+## 5. 如何在 Jaeger UI 中排查一次请求
+
+1. 打开 [http://127.0.0.1:16686](http://127.0.0.1:16686)，在 Service 下拉框选择 `ai-example`。
+2. 将时间范围覆盖刚刚执行请求的时段；首次本地验证可先用较短范围减少噪音。
+3. 在 Trace 列表中打开最近的一条，查看整体耗时、Span 时间线和错误标记。
+4. 先判断慢的是入口、下游 HTTP、数据库还是应用自身；再回到日志、run 时间线或指标验证假设。
+5. 如果工业页已给出 trace ID，直接访问 `/trace/{traceId}`，避免依赖时间与服务过滤条件猜测哪一条属于该请求。
+
+阅读时要区分**根 Span 耗时**和**子 Span 耗时**：并发子操作的时间可以重叠，不能将所有子 Span 时长简单相加当作端到端耗时。Trace 还能证明一次被采样请求经历了什么，不能证明没有被采样的请求同样健康。
+
+## 6. traceparent、traceId 与业务 runId 的关系
+
+| 标识 | 来源与用途 | 不能替代什么 |
+| --- | --- | --- |
+| `traceId` | 当前 Trace 的全局关联 ID；用于 Jaeger 深链 | 不是业务会话 ID，不应用作数据库主键 |
+| `spanId` | Trace 中一个操作的节点 ID | 不能唯一标识整条请求链路 |
+| `traceparent` | W3C Trace Context 响应头，携带版本、trace ID、span ID、采样标志 | 不是鉴权凭据，也不是用户可篡改后信任的身份 |
+| `runId` | SSE 执行与事件回放的业务 ID | 不能直接在 Jaeger 中检索，且不等于 trace ID |
+
+ai-example 在聊天/Agent 控制器里从 `Tracer.currentSpan()` 读取 ID：有当前 Span 时写 `traceparent` 并放入 MDC；业务服务据此把 `traceId` 写到 SSE `meta`。这是一条便于人工跳转的关联线，不意味着应用已经把 `runId` 作为 Trace attribute 全面索引。
+
+## 7. 当前能力边界与下一步扩展
+
+当前实现的重点是 Spring Boot 自动追踪、OTLP 导出和 trace ID 深链。以下能力尚未由仓库配置，应在需求明确后再实施：
+
+- 没有声明 Jaeger 持久化存储；all-in-one 本地演示容器重建后的历史不能当作保留承诺。
+- 没有 collector 鉴权、TLS、采样策略服务或跨环境聚合方案；不要把 4318 直接暴露给不受信任网络。
+- 没有为 RAG 检索、模型调用、工具执行、入库任务统一增加命名的业务 Span 与安全属性；若增加，应避免记录问题原文、JWT、密钥、`userId`、`sessionId` 和 `runId` 等敏感或高基数信息。
+- 没有 Trace 驱动的告警；告警仍应基于可行动的指标与阈值设计，而不是对单条 Trace 触发通知。
+
+新增自定义 Span 前先定义诊断问题和属性白名单。例如“检索总耗时由哪些阶段组成”才值得围绕检索边界增加 Span；“记录用户输入便于搜索”则不应通过 Trace attribute 实现。
+
+## 8. 常见问题与排查顺序
+
+### Jaeger UI 打不开
+
+检查 `jaeger` 容器是否运行及宿主端口是否为 `16686`；若设置了 `JAEGER_UI_PORT`，使用自定义端口。UI 的 16686 与 Collector 的 4318 不可互换。
+
+### UI 打开但没有 ai-example Trace
+
+依次检查：Java 是否以 `OTEL_TRACING_EXPORT=true` 重启 → endpoint 是否与运行方式匹配（容器用 `jaeger`、宿主机用 `localhost`）→ Jaeger Collector 是否开启 `COLLECTOR_OTLP_ENABLED=true` → 请求是否在采样范围内 → Java 日志是否出现 OTLP 导出失败。
+
+### Jaeger 返回 404 或导出 URL 看起来重复
+
+检查 `APP_OTLP_TRACES_ENDPOINT` 是否恰好为 `http://host:4318/v1/traces`。不要将带 `/v1/traces` 的完整地址放进 `OTEL_EXPORTER_OTLP_ENDPOINT`；当前配置对后者可能再次追加路径。
+
+### 有 Trace 但工业页没有“在 Jaeger 中打开”链接
+
+确认访问的是会回传 `traceparent` 或 SSE `meta.traceId` 的工业级聊天/Agent 流程；普通 snapshot 只在响应体中尝试返回当前 trace ID。还要确认浏览器当前会话没有清空已保存的 trace ID。最终以 Jaeger UI 是否能按服务看到 Trace 为准。
+
+### Trace 很多但不能解释业务步骤
+
+这是自动框架 Span 的正常边界。先用 `traceId` 将一次请求与 run 时间线、审计和日志对应起来；如果仍无法定位，再为已定义的业务阶段增加最小范围的自定义 Span，而不是把所有对象和输入全量塞进属性。
+
+相关实践：[Grafana 使用指南](/docs/tech-stack/observability/grafana)、[Prometheus 使用指南](/docs/tech-stack/observability/prometheus)、[可观测与审计](/docs/ai-example/production/ops-audit)。
