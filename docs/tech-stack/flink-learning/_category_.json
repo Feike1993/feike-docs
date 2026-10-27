@@ -1,0 +1,10 @@
+{
+  "label": "Flink 学习路线",
+  "position": 7,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "slug": "/tech-stack/flink-learning",
+    "description": "资深 Java 后端转 Flink 2.x：每天约 8 小时、四周把 1.x 经验迁到 2.x 范式并补足原理深度。含怎么学、按日日程、可运行代码与一手资料索引。"
+  }
+}

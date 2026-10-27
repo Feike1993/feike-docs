@@ -1,0 +1,102 @@
+---
+sidebar_position: 1
+title: 概览与四周目标
+description: 资深 Java 后端、已有 Flink 1.x 实战，四周系统化到 2.x 并补足原理；技术选型、版本决策、每日节奏与四周总览
+---
+
+# 概览与四周目标
+
+面向**已有多年 Java / Spring 后端经验、且已经用过 Flink 1.x** 的同学。一个月不是从零学流处理，
+而是完成两件事：**把 1.x 的经验迁到 2.x 范式**，以及**把原理补到能扛住面试追问**。
+
+先看 [Flink 怎么学](./how-to-learn.mdx) 定方法，再按 [Week 1](./week-1.mdx)～[Week 4](./week-4.mdx) 执行；
+资料与官网集中在 [一手资料与官网](./resources.mdx)。
+
+## 一个月交付物
+
+代码在兄弟目录 `flink-learning/`（与本笔记站同级），**每个主题对应一个能单独跑出结果的例子**：
+
+- 14 个可运行例子，覆盖 W1–W4 全部主题；每个都有明确可观察的输出
+- 一个**手写的 FLIP-27 Source**——把新接口的三件套（Split / Enumerator / Reader）走通一遍
+- 一组**对照实验**：水位线两种容忍度对比、hashmap vs rocksdb、`keyBy` 前后路由对比
+- 一次**亲手做的故障恢复**：跑作业 → 杀掉 → 从 checkpoint 恢复 → 验证状态接着算
+- 一个**端到端链路**：Kafka 进 → Flink SQL 窗口聚合 → Kafka 出，含端到端 Exactly-Once 配置
+- **加分**：把作业提交到 Docker 里的 Flink Session 集群，体会本地跑与集群跑的差别
+
+:::info[时间假设]
+每天约 **8 小时** × 约 28 天（约 220 小时）。某天只能学半天时，优先保住当日动手 DoD，
+砍「加分项 / 第二篇精读」。
+:::
+
+## 技术选型
+
+| 层级 | 选择 | 说明 |
+| --- | --- | --- |
+| Flink 版本 | **2.2.x**（不是最新的 2.3） | 见下方「为什么不用 2.3」 |
+| JDK | **17** | Flink 2.x 官方默认；21 仍标 experimental，25 不支持 |
+| 语言 | Java | 不用 Scala——Scala DataStream API 在 2.0 已移除 |
+| 构建 | Maven | 单模块，按周分 package |
+| 主要 API | **DataStream + Flink SQL 并重** | 能 SQL 就 SQL；DataStream 留给 SQL 表达不了的场景 |
+| 不选 | Scala API、DataSet API、PyFlink | 前两个在 2.x 已移除；PyFlink 放第二个月 |
+
+:::danger[为什么不用最新的 2.3]
+**Flink 2.3 目前完全没有 Kafka 连接器。** 官方文档原文：
+"There is no connector (yet) available for Flink version 2.3"，
+追踪 issue [FLINK-40121](https://issues.apache.org/jira/browse/FLINK-40121) 仍是 Open。
+
+连接器独立发版，版本格式是 `<连接器版本>-<Flink版本>`，2.2 对应
+`flink-connector-kafka:5.0.0-2.2`。
+
+Kafka 是你日常在用的东西，第四周端到端（Kafka → Flink SQL → Kafka）必须真能跑通，
+所以选 2.2.x。**学习用到的 API 面与 2.3 几乎一致**，只有连接器可用性有差，
+2.3 的连接器发布后可以平滑升级。
+:::
+
+## JDK 必须先解决
+
+本机 `JAVA_HOME` 默认指向 JDK 25，而 Flink 2.x **完全不支持 Java 25**，
+Java 21 至今仍是 *experimental*。直接 `mvn` 会在反射 / Unsafe / 模块化上抛出一堆
+看不出根因的错——这是最可能让人第一天就卡住的地方。
+
+处理方式：装 JDK 17（`brew install openjdk@17`），并用项目里的 `run.sh` 固化切换。
+细节见 [Week 1 · 环境与运行模型](./week-1.mdx)。
+
+## 每日节奏（约 8 小时）
+
+| 时段 | 时长 | 内容 |
+| --- | --- | --- |
+| 上午 | 3h | 精读官方文档 + 笔记（概念、边界、反例） |
+| 下午前段 | 3h | 动手：跑通本周例子 → 改参数做对照实验 |
+| 下午后段 | 1.5h | 对照：改一个变量看输出怎么变，记录差异 |
+| 收尾 | 0.5h | 日记：学会什么、卡点、明日首要任务 |
+
+每周最后一天做缓冲与复盘（仍算在 8h 内）。
+
+**为什么下午后段专门留「对照」**：Flink 的很多概念（水位线、状态后端、并行度）
+光读文档建立不了直觉，**必须改一个参数看结果怎么变**。本项目的每个例子都刻意留了
+这种「改一行、跑一遍、看差异」的入口。
+
+## 四周总览
+
+```mermaid
+flowchart LR
+  W1[W1_运行模型与DataStream] --> W2[W2_时间语义与窗口]
+  W2 --> W3[W3_状态与容错]
+  W3 --> W4[W4_SQL与生产化]
+```
+
+| 周 | 主题 | 出口 |
+| --- | --- | --- |
+| [Week 1](./week-1.mdx) | 运行模型 + DataStream 的 2.x 范式 | 能画清作业从 `main()` 到 TaskManager 的执行路径；三个例子跑通；**说清 2.x 与 1.x 的破坏性差异** |
+| [Week 2](./week-2.mdx) | 时间语义、Watermark、窗口 | 能讲清水位线如何生成/传播/推进；两种容忍度的对照实验自己跑出来；迟到数据有兜底 |
+| [Week 3](./week-3.mdx) | 状态、Checkpoint、端到端 Exactly-Once | **亲手做一次故障恢复并验证状态接着算**；能推演 Barrier 对齐；能讲清 2PC |
+| [Week 4](./week-4.mdx) | Flink SQL + 生产化 | 端到端链路跑通；能列生产必看指标与常见故障；作业能提交到真实集群 |
+
+## 刻意不做（本月）
+
+- Flink 内核源码逐行读（`StreamTask` / `CheckpointCoordinator` 实现细节）
+- 机器学习 / PyFlink / Flink CDC 全家桶
+- 自建 Flink on Kubernetes 的 Operator 运维体系
+- 追求「所有连接器都摸一遍」——按需查文档即可
+
+这些见 [resources 第 2 个月预览](./resources.mdx#第-2-个月预览)。

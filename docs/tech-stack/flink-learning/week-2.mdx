@@ -1,0 +1,94 @@
+---
+sidebar_position: 4
+title: Week 2 · 时间语义与窗口
+description: D8–D14：处理时间 vs 事件时间、水位线的生成与推进、窗口类型、迟到数据与侧输出流
+---
+
+# Week 2 · 时间语义与窗口
+
+主题：**这是 Flink 最核心也最容易含糊过去的一周**。面试问得最多的就是这里，
+而光读文档建立不了直觉——必须靠对照实验。
+
+方法回顾：[Flink 怎么学](./how-to-learn.mdx)。
+
+**本周出口**：能讲清水位线如何生成、传播、推进；两种容忍度的对照实验自己跑出来；
+迟到数据有兜底方案且知道各自的代价。
+
+对应代码：`flink-learning/src/main/java/com/feike/flink/w2/`
+
+## D8–D9 · 三种时间与水位线
+
+**上午精读**
+
+- [时间语义与 Watermark](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/concepts/time/)：
+  事件时间 / 摄入时间 / 处理时间的区别与适用场景
+- [生成 Watermark](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/dev/datastream/event-time/generating_watermarks/)：
+  `WatermarkStrategy` 的两个组成部分
+
+**下午动手**
+
+- 跑 `w2.WatermarkOutOfOrderJob`，**仔细看两组输出的条数差异**
+
+**对照 / 日记**
+
+- 把水位线公式写下来：`watermark = 见过的最大事件时间 - 容忍乱序`。
+  然后回答问题：**为什么容忍度调大，结果更准但延迟更高？**
+- 记下那个坑：默认水位线是**周期性的**（`pipeline.auto-watermark-interval`，默认 200ms）。
+  本地有界数据跑得太快，可能只在结束时发一次水位线，
+  **导致乱序实验完全看不出效果**。本项目用 `common/PerEventWatermarkGenerator`
+  逐条发送来解决——这也说明「框架默认值」本身是理解行为的一部分
+- DoD：能画出「数据到达 → 水位线推进 → 窗口何时关闭」的时间线
+
+## D10–D11 · 窗口类型
+
+**上午精读**
+
+- [窗口](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/dev/datastream/operators/windows/)：
+  滚动 / 滑动 / 会话 / 全局，以及窗口分配器与触发器
+- 重点看**会话窗口**那一段：为什么它需要「窗口合并」
+
+**下午动手**
+
+- 跑 `w2.EventTimeWindowJob`，确认窗口边界是 `[start, end)`，且与到达顺序无关
+- 跑 `w2.SessionWindowJob`，观察每个会话窗口的边界都不一样
+
+**对照 / 日记**
+
+- 改窗口大小（5s → 10s）重跑，看数据怎么重新归窗
+- 自问：**会话窗口为什么比滚动窗口贵？**（提示：每条数据先开一个窗口，然后合并）
+- DoD：能说清四类窗口各自的适用场景，以及哪一类不能用「预分配窗口」实现
+
+## D12–D13 · 迟到数据与侧输出流
+
+**上午精读**
+
+- 窗口文档中 `allowedLateness` 与 `sideOutputLateData` 两节
+- 加深：想清「窗口重复输出」对下游意味着什么
+
+**下午动手**
+
+- 跑 `w2.LateDataJob`，确认输出里有**同一个窗口打印两次**——这是正确行为
+- 确认那条最晚的数据进了侧输出流
+- 把 `allowedLateness` 改成 `Duration.ZERO` 再跑，看侧输出流里多了什么
+
+**对照 / 日记**
+
+- 关键推论：**正因为窗口会重复输出，端到端 Exactly-Once 才不能只靠 checkpoint**，
+  下游必须支持幂等写入或按主键覆盖。这条会在 [Week 3](./week-3.mdx) 展开
+- DoD：能回答「水位线过去了但数据才来，Flink 有几层补救，各自的代价是什么」
+
+:::tip[进入 Week 3 的前提]
+能自己解释「窗口为什么会重复输出」，否则 W3 的端到端一致性会变成背结论。
+:::
+
+## D14 · 缓冲与 Week 2 复盘
+
+- 补债：时间语义与窗口任一块不稳则优先补
+- 自检：
+  - [ ] 能写出水位线公式，并解释容忍度的取舍
+  - [ ] 亲手跑出「两种容忍度 → 窗口条数不同」的对照
+  - [ ] 能说清四类窗口的差别与会话窗口的合并机制
+  - [ ] 亲手触发过窗口重算，并知道下游该怎么应对
+  - [ ] 用过侧输出流，知道它是兜底不是补充
+
+下一周：[Week 3 · 状态与容错](./week-3.mdx)

@@ -1,0 +1,102 @@
+---
+sidebar_position: 5
+title: Week 3 · 状态与容错
+description: D15–D21：Keyed State、State TTL、状态后端选型、Checkpoint 机制与端到端 Exactly-Once；含一次亲手做的故障恢复
+---
+
+# Week 3 · 状态与容错
+
+主题：**这是「会写作业」和「会运维作业」的分水岭**。
+前面两周的作业挂了重跑就行，这一周开始，作业挂了要能**接着算**。
+
+方法回顾：[Flink 怎么学](./how-to-learn.mdx)。
+
+**本周出口**：亲手做一次故障恢复并验证状态接着算；能推演 Barrier 对齐；
+能讲清端到端 Exactly-Once 靠什么保证、代价是什么。
+
+对应代码：`flink-learning/src/main/java/com/feike/flink/w3/`
+
+## D15–D16 · Keyed State
+
+**上午精读**
+
+- [有状态流处理](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/concepts/stateful-stream-processing/)：
+  什么是状态、为什么流处理需要它
+- [状态与容错](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/dev/datastream/fault-tolerance/state/)：
+  Keyed State / Operator State、各类型 State 的适用场景
+
+**下午动手**
+
+- 跑 `w3.KeyedStateJob`，确认状态**按 key 隔离**（sensor-0 和 sensor-1 各算各的）
+
+**对照 / 日记**
+
+- 用你熟悉的 Redis 做对照，写下 Flink 白送了你哪三件事：
+  并发正确性、持久化、故障恢复
+- 自问：**Keyed State 为什么能免锁并行？代价是什么？**
+  （答：`keyBy` 保证同 key 同实例，无需加锁；代价是 key 倾斜时某实例先成瓶颈）
+- DoD：说得出 `ValueState` / `MapState` / `ListState` 各自等价于 Redis 的什么结构
+
+## D17–D18 · State TTL 与状态后端
+
+**上午精读**
+
+- [状态过期（TTL）](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/dev/datastream/fault-tolerance/state/#state-time-to-live-ttl)
+- [状态后端](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/ops/state/state_backends/)：
+  hashmap 与 rocksdb 的取舍
+
+**下午动手**
+
+- 跑 `w3.StateTtlJob`，看到定时器读到的状态是 `null`（已过期）
+- 跑 `w3.StateBackendJob`，然后把 `USE_ROCKSDB` 改成 `true` 再跑一遍
+
+**对照 / 日记**
+
+- 记下 **2.x 的写法变化**：`env.setStateBackend(...)` 已移除，改成配置项
+  `state.backend.type`；增量 checkpoint 也从构造参数变成独立配置项
+- 自问：**什么时候必须上 RocksDB？**（答：状态大到快照做不出来时——
+  它是唯一支持**增量 checkpoint** 的后端）
+- DoD：能说出 State TTL 的三个坑（基于处理时间 / 惰性清理 / UpdateType 语义），
+  且能解释「key 基数大时状态为什么会爆」
+
+## D19–D20 · Checkpoint 与故障恢复
+
+**上午精读**
+
+- [Checkpointing](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/dev/datastream/fault-tolerance/checkpointing/)：
+  配置项、Barrier 对齐、Savepoint 与 Checkpoint 的区别
+- 加深：搜一下 Chandy-Lamport 分布式快照算法，理解 Flink 快照的理论基础
+
+**下午动手**
+
+- 跑 `w3.CheckpointConfigJob`（作业约 6 秒，期间会做一次 checkpoint）
+- 确认 checkpoint 文件真的落在了 `/tmp/flink-learning/checkpoints/`
+
+**对照 / 日记（本周的核心 DoD）**
+
+- **亲手做一次故障恢复**——这是整个项目里唯一需要你「动手破坏」才能学会的东西：
+  1. 跑作业，记下某个 key 的累计条数
+  2. Ctrl-C 杀掉
+  3. 从 checkpoint 恢复重跑
+  4. **确认累计条数接着上次继续，而不是从 1 重新开始**
+
+  「接着数」才是恢复成功的证据。日志里出现「已恢复」不算。
+- 另一个对照：把 checkpoint 间隔从 5 秒改成 1 秒再跑，观察快照频率对作业的影响
+- DoD：能画图说明 Barrier 如何从 source 流到 sink，以及对齐（aligned）在做什么
+
+## D21 · 缓冲与 Week 3 复盘
+
+- 补债：状态与恢复任一块不稳则优先补
+- 自检：
+  - [ ] 能解释 Keyed State 免锁并行的原理与代价
+  - [ ] 用过 State TTL，知道它的三个坑
+  - [ ] 能说出 hashmap 与 rocksdb 的取舍，且用新写法切换过
+  - [ ] **亲手做完一次故障恢复，并验证状态接着算**
+  - [ ] 能推演 Barrier 对齐的过程
+  - [ ] 分得清 Checkpoint 与 Savepoint 的用途
+
+:::tip[进入 Week 4 的前提]
+「故障恢复」那一条没打勾就别往下走——W4 的端到端一致性完全建立在这一周的基础上。
+:::
+
+下一周：[Week 4 · Flink SQL 与生产化](./week-4.mdx)

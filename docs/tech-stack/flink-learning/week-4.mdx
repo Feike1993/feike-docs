@@ -1,0 +1,133 @@
+---
+sidebar_position: 6
+title: Week 4 · Flink SQL 与生产化
+description: D22–D28：Table API / SQL、窗口 TVF、Kafka 端到端与两阶段提交、部署模式与线上必看指标
+---
+
+# Week 4 · Flink SQL 与生产化
+
+主题：从「本地能跑」到「线上敢跑」。SQL 是当前 Flink 的主流表达方式，
+生产化则要补齐部署、监控与端到端一致性。
+
+方法回顾：[Flink 怎么学](./how-to-learn.mdx)。
+
+**本周出口**：端到端链路跑通（Kafka → Flink SQL → Kafka）；能讲清两阶段提交如何保证端到端不重；
+能列出线上必看指标与常见故障；作业能提交到真实集群。
+
+对应代码：`flink-learning/src/main/java/com/feike/flink/w4/`
+
+## D22–D23 · Flink SQL 入门
+
+**上午精读**
+
+- [Table API & SQL 概览](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/dev/table/overview/)：
+  **动态表（Dynamic Table）** 是理解 Flink SQL 的关键——流如何被看成一张不断变化的表
+- [SQL Client](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/dev/table/sqlclient/)：
+  不写 Java 也能跑 SQL
+
+**下午动手**
+
+- 跑 `w4.FlinkSqlJob`，看输出的 changelog（`+I` 插入 / `-U` 撤回 / `+U` 更新）
+- 用发行版自带的 `./bin/sql-client.sh embedded` 跑一条同样的 SQL，体会两种入口的差别
+
+**对照 / 日记**
+
+- **为什么看到 `-U` / `+U` 不要慌**：流式聚合的结果是会变的，这是动态表的正常表现。
+  但这也意味着**下游必须能处理更新**——如果下游是只追加不更新的系统，就会出问题
+- 记下两个坑：
+  1. `timestamp` 是 Flink SQL 的**保留字**，当列名要加反引号
+  2. `fromDataStream` 直接用 POJO 字段名当列名，**不做命名风格转换**（所以 SQL 里是 `sensorId` 而不是 `sensor_id`）
+- DoD：能解释「动态表」为什么是流与 SQL 之间的桥
+
+## D24–D25 · 窗口 TVF 与连接器
+
+**上午精读**
+
+- [窗口 TVF](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/sql/reference/queries/window-tvf/)：
+  `TUMBLE` / `HOP` / `CUMULATE` 三种窗口
+- [Kafka 连接器](https://nightlies.apache.org/flink/flink-docs-release-2.2/zh/docs/connectors/table/kafka/)：
+  source / sink 的建表参数
+
+**下午动手**
+
+- 跑 `w4.WindowTvfJob`，对比 TUMBLE 与 HOP 的窗口边界（HOP 里同一条数据落进多个窗口）
+- 起 Kafka：`cd docker && docker compose up -d kafka`
+- 跑 `w4.KafkaEndToEndJob`，灌数据、看结果落进 `sensor-agg`
+
+**对照 / 日记**
+
+- 记下 SQL 窗口的**三代写法**，别抄到过时的：
+  Group Window（已废弃）→ **窗口 TVF（当前推荐）** → `HOP` / `CUMULATE`
+- 遇到需要多路输出时用 `StatementSet` 把多个 `INSERT` 合成一个作业，
+  避免「第一个作业结束、MiniCluster 关掉、第二个作业起不来」
+- DoD：能写出一个 Kafka → 窗口聚合 → Kafka 的完整 DDL 链路
+
+## D26 · 端到端 Exactly-Once（本周最硬的一节）
+
+**上午精读**
+
+- [Kafka 连接器](https://nightlies.apache.org/flink/flink-docs-release-2.2/zh/docs/connectors/table/kafka/)中
+  关于 `sink.delivery-guarantee` 与事务的说明
+- 回顾 [Week 2 的迟到数据](./week-2.mdx)：为什么「窗口会重复输出」导致下游必须幂等
+
+**下午动手**
+
+- 读 `w4.KafkaEndToEndJob` 里 sink 表的那两个参数，理解它们各自在做什么
+- 把 `sink.delivery-guarantee` 去掉再跑一次，思考会变成什么语义
+
+**对照 / 日记**
+
+- **把这三件事讲清楚，本门课的核心就过关了**：
+  1. checkpoint 保证的是**作业内部状态**的全局一致，**不等于**端到端一致
+  2. Source 侧：Kafka 消费位点和状态在**同一个快照**里，重启从快照位点重读，不多不少
+  3. Sink 侧：必须有**事务或幂等**。Kafka sink 用**两阶段提交**——
+     快照期间开事务写但不提交，checkpoint 成功才提交，失败则回滚。**这才是「不重」的来源**
+- 代价：事务让下游在提交前的窗口内**看不到数据**，是拿**延迟换一致性**
+- **踩一次这个坑**（本项目已帮你绕开，但要知道它存在）：
+  Flink 的 Kafka sink 默认事务超时是 **1 小时**，而 Kafka broker 的
+  `transaction.max.timeout.ms` 默认只有 **15 分钟**。不改 broker 的话作业会一直报
+  *The transaction timeout is larger than the maximum value allowed by the broker* 并反复重启。
+  **换任何 Kafka 环境验证 Exactly-Once 之前，先确认这一项**——这是最典型的
+  「概念都懂但就是跑不起来」。
+- DoD：能回答「如果 sink 是 MySQL 呢？」（答：要幂等写入——唯一键 upsert，或自己实现两阶段提交）
+
+## D27 · 生产化与部署
+
+**上午精读**
+
+- [部署模式](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/deployment/overview/)：
+  Session / Application 模式的区别（per-job 模式在 2.x 已移除）
+- [指标与监控](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/ops/metrics/)：
+  哪些指标是必须盯的
+
+**下午动手**
+
+- 起 Flink 集群：`cd docker && ./fetch-connectors.sh && docker compose --profile cluster up -d`
+- 打开 Web UI（[localhost:8081](http://localhost:8081)）看作业图、Checkpoint 页、反压页
+- 把作业提交上去跑，对比本地跑与集群跑的差别
+
+**对照 / 日记**
+
+- **列出线上必看的指标**（这是面试高频题）：
+  - Checkpoint：成功率、耗时、大小（大小持续增长 = 状态在膨胀）
+  - 反压（Backpressure）：哪个算子红了，就去看它下游
+  - 关键业务指标：输入速率、输出速率、延迟
+  - 资源：TaskManager 堆内存、GC 时间
+- **列出常见线上故障与排查方向**：
+  - checkpoint 一直失败 → 状态太大 / 存储慢 / 反压严重
+  - 作业反复重启 → 异常没处理干净 / OOM
+  - 反压 → 下游慢，先看下游
+  - 数据倾斜 → key 分布不均，某个 subtask 明显更忙
+- DoD：能对着 Web UI 说出当前作业有没有问题、问题在哪
+
+## D28 · 总复盘
+
+- 对照 [四周验收清单](./resources.mdx#四周验收清单) 打勾，缺项记下第二个月优先序
+- 补一次「端到端重启验证」：Kafka 链路跑起来 → 杀掉作业 → 重启 → 确认**不丢不重**
+
+:::tip[结束标准]
+不是「学了很多概念」，而是：拿到一个实时需求 → 判断该用 SQL 还是 DataStream →
+定好时间语义与状态方案 → 配好 checkpoint 与端到端一致性 → 上线后能看指标定位问题。
+:::
+
+资料总表与第 2 个月预览：[一手资料与官网](./resources.mdx)

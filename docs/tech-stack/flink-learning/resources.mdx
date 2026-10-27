@@ -1,0 +1,161 @@
+---
+sidebar_position: 7
+title: 一手资料与官网
+description: Flink 官方中文文档入口、各站导航、版本陷阱提醒、四周验收清单与第 2 个月预览
+---
+
+# 一手资料与官网
+
+原则：**优先官方文档**。社区博客标为「二手」，适合补齐工程语境，不与一手混称。
+
+怎么读这些站点：见 [Flink 怎么学 · 怎么读官方文档](./how-to-learn.mdx#怎么读官方文档)。
+
+## 一个重要发现：官方中文文档是可用的
+
+Flink 官方中文文档**仍在维护，且已覆盖 2.x**（nightlies 的 `/zh/` 目录持续构建）。
+这意味着**不必依赖二手翻译**——这是本项目把中文官方文档作为主表的原因。
+
+:::danger[版本陷阱：看任何资料前先确认版本]
+Flink 2.x 与 1.x 的文档差异极大，而搜索引擎和博客里 **1.x 的资料仍然占多数**。
+判断资料是否过时的快速信号：
+
+- 出现 `addSource` / `addSink` / `SourceFunction` / `SinkFunction` → 1.x
+- 出现 `DataSet` API → 1.x
+- 出现 `env.setStateBackend(...)` → 1.x
+- 出现 `flink-conf.yaml` → 1.x
+
+具体差异见 [2.x 与 1.x 的破坏性差异清单](./how-to-learn.mdx#2x-与-1x-的破坏性差异清单)。
+:::
+
+## A. 必读一手（开篇顺序）
+
+| 资料 | 链接 | 学什么 |
+| --- | --- | --- |
+| Flink 中文文档首页 | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/ | 总入口，先建立地图 |
+| 数据流编程模型 | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/concepts/overview/ | 分层 API、流与批的关系 |
+| Flink 架构 | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/concepts/flink-architecture/ | JobManager / TaskManager / Slot / 并行度 |
+| 时间语义与 Watermark | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/concepts/time/ | **W2 的地基**，三种时间的区别 |
+| 生成 Watermark | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/dev/datastream/event-time/generating_watermarks/ | `WatermarkStrategy` 的两个组成部分 |
+| 窗口 | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/dev/datastream/operators/windows/ | 窗口类型、触发器、迟到数据 |
+| 有状态流处理 | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/concepts/stateful-stream-processing/ | **W3 的地基**，为什么需要状态 |
+| Checkpointing | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/dev/datastream/fault-tolerance/checkpointing/ | Barrier、对齐、Savepoint 与 Checkpoint 的区别 |
+| Table API & SQL 概览 | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/dev/table/overview/ | **W4 的地基**，动态表 |
+| 窗口 TVF | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/sql/reference/queries/window-tvf/ | SQL 里做窗口的当前推荐写法 |
+
+:::info[从哪一页开始]
+每个官网固定顺序：**Learn Flink → Concepts → API → Ops**。
+不要从随机博客倒推官方能力。
+:::
+
+## B. 官网导航（按主题）
+
+### 核心概念（W1–W3 主线）
+
+| 站点 | 链接 | 用途 |
+| --- | --- | --- |
+| 概览与概念 | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/concepts/overview/ | 分层 API |
+| 执行模式 BATCH | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/dev/datastream/execution_mode/ | DataSet 移除后批处理怎么写 |
+| Sources（FLIP-27） | https://nightlies.apache.org/flink/flink-docs-release-2.3/docs/internals/sources/ | **讲清新 Source 三件套的唯一权威来源**（暂无中文） |
+| Sinks（FLIP-191/372） | https://nightlies.apache.org/flink/flink-docs-release-2.3/docs/internals/sinks/ | 新 Sink 接口（暂无中文） |
+| 状态与容错 | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/dev/datastream/fault-tolerance/state/ | Keyed State / Operator State |
+| 状态后端 | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/ops/state/state_backends/ | hashmap vs rocksdb |
+| 大状态与 RocksDB | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/ops/state/large_state_tuning/ | 状态调优（W3 进阶） |
+
+### 工程与运维（W4 主线）
+
+| 站点 | 链接 | 用途 |
+| --- | --- | --- |
+| 部署模式总览 | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/deployment/overview/ | Session / Application 模式 |
+| Docker 部署 | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/deployment/resource-providers/standalone/docker/ | 本地起集群 |
+| 指标与监控 | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/ops/metrics/ | **线上必看哪些指标** |
+| 反压 | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/ops/monitoring/back_pressure/ | 反压怎么定位 |
+| SQL Client | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/dev/table/sqlclient/ | 不写 Java 跑 SQL |
+
+### 连接器
+
+| 站点 | 链接 | 用途 |
+| --- | --- | --- |
+| Kafka 连接器（2.2） | https://nightlies.apache.org/flink/flink-docs-release-2.2/zh/docs/connectors/table/kafka/ | **端到端 Exactly-Once 的参数在这** |
+| Kafka DataStream 连接器 | https://nightlies.apache.org/flink/flink-docs-release-2.2/zh/docs/connectors/datastream/kafka/ | 非 SQL 场景 |
+| 连接器总览 | https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/connectors/ | 需要什么先来这查有没有 |
+
+:::warning[连接器要选对 Flink 版本]
+连接器**独立发版**，版本格式是 `<连接器版本>-<Flink版本>`，例如 2.2 对应
+`flink-connector-kafka:5.0.0-2.2`。
+
+**2.3 目前没有 Kafka 连接器**（[FLINK-40121](https://issues.apache.org/jira/browse/FLINK-40121) 仍 Open），
+这就是本月选 2.2.x 的原因。查连接器可用性去
+[连接器总览页](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/connectors/)，
+它会明确标注某个版本有没有对应连接器。
+:::
+
+### 版本与变更
+
+| 站点 | 链接 | 用途 |
+| --- | --- | --- |
+| Flink 2.0 Release Notes | https://nightlies.apache.org/flink/flink-docs-release-2.3/release-notes/flink-2.0/ | **破坏性变更的权威来源** |
+| Java 兼容性 | https://nightlies.apache.org/flink/flink-docs-release-2.3/docs/deployment/java_compatibility/ | 哪个 Flink 配哪个 JDK |
+| 下载页 | https://flink.apache.org/downloads/ | 当前稳定版与补丁版 |
+| 各版本生命周期 | https://endoflife.date/apache-flink | 哪个版本还在安全支持期 |
+
+### 源码与社区
+
+| 站点 | 链接 | 用途 |
+| --- | --- | --- |
+| GitHub | https://github.com/apache/flink | 源码、FLIP 提案 |
+| JIRA | https://issues.apache.org/jira/browse/FLINK | 搜「这个问题是不是已知 bug」 |
+| flink-docker | https://github.com/apache/flink-docker | 官方镜像的构建方式 |
+
+## C. 中文体系化（二手，选读）
+
+适合补齐工程语境与面试主线，**不替代**上表官方文档：
+
+| 资料 | 链接 | 说明 |
+| --- | --- | --- |
+| Flink 中文社区 | https://flink-learning.org.cn/ | 社区文章与视频，**注意确认版本** |
+| Ververica 中文博客 | https://www.ververica.com/blog | 原厂团队，偏工程实践 |
+
+:::warning[关于 Flink 中文书]
+**未找到官方发布的 2.x 中文书**。市面上流通的 Flink 书籍大多基于 1.x，
+读的时候务必对照 [破坏性差异清单](./how-to-learn.mdx#2x-与-1x-的破坏性差异清单) 剔掉过时内容。
+本月的必读以官方文档为准。
+:::
+
+## D. 怎么用这些资料
+
+1. **Week 日程「必读」** → 优先 A / B 的官方链接。
+2. **同周加深** → 需要工程语境时再翻 C，且先确认版本。
+3. **遇到不确定的 API** → 直接看 javadoc 或反编译类，比搜博客快且准
+   （本项目里 `env.setStateBackend` 已移除、`SourceReader.isAvailable()` 是新增抽象方法，
+   都是这么确认的）。
+4. **版本会变** → 涉及 API、连接器、JDK 版本时，以官网当日文档为准。
+
+## 四周验收清单
+
+- [ ] JDK 17 配好，`./run.sh mvn -B compile` 通过，能解释为什么不能用 JDK 25
+- [ ] 说得出至少 4 条 2.x 的破坏性变更
+- [ ] 能画清作业从 `main()` 到 TaskManager 的执行路径
+- [ ] 手写过一遍 FLIP-27 Source，知道 Split / Enumerator / Reader 各管什么
+- [ ] 能用 `keyBy` 解释「同一 key 必进同一并行实例」及其代价
+- [ ] 能写出水位线公式，并**亲手跑出两种容忍度的对照差异**
+- [ ] 说清四类窗口的差别，知道会话窗口为什么需要合并
+- [ ] **亲手触发过窗口重算**，并知道下游该怎么应对
+- [ ] 能解释 Keyed State 免锁并行的原理
+- [ ] 用过 State TTL，说得出它的三个坑
+- [ ] 能用新写法切换状态后端，说明什么时候必须上 RocksDB
+- [ ] **亲手做了一次故障恢复，且验证状态接着算**（不是日志说恢复成功）
+- [ ] 能推演 Barrier 对齐，分清 Checkpoint 与 Savepoint
+- [ ] 用 Flink SQL 写出过窗口聚合，理解动态表与 changelog
+- [ ] **端到端链路跑通**，能讲清两阶段提交如何保证不重、代价是什么
+- [ ] 能列出线上必看指标，并对着 Web UI 判断作业有没有问题
+
+未勾项按优先级排进第 2 个月，而不是同时开新项目。
+
+## 第 2 个月预览
+
+- **Flink CDC**：从数据库 binlog 直接入湖入仓，替代定时抽数
+- **Paimon / Iceberg / Hudi**：流式数据湖，解决「实时链路的数据落哪」
+- **状态调优进阶**：RocksDB 参数、增量 checkpoint 实践、状态迁移与扩缩容
+- **Flink on Kubernetes**：Operator 部署、弹性伸缩、多租户
+- **源码层**：`StreamTask` 执行循环、`CheckpointCoordinator`、网络栈与反压实现
+- **Python / PyFlink**：如果团队里有数据科学同学要自己写作业

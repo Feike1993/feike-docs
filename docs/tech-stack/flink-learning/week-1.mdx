@@ -1,0 +1,95 @@
+---
+sidebar_position: 3
+title: Week 1 · 运行模型与 DataStream
+description: D1–D7：环境与 JDK、作业运行模型、FLIP-27 新 Source、并行度与 keyBy；含 2.x 破坏性差异清单
+---
+
+# Week 1 · 运行模型与 DataStream
+
+主题：先把**环境**和**作业怎么跑起来**这两件事彻底搞清，再谈语义。
+方法见 [Flink 怎么学](./how-to-learn.mdx)。
+
+**本周出口**：能画清一个作业从 `main()` 到 TaskManager 的执行路径；
+三个例子跑通；说得清 2.x 与 1.x 的破坏性差异。
+
+对应代码：`flink-learning/src/main/java/com/feike/flink/w1/`
+
+## D1–D2 · 环境与最小作业
+
+**上午精读**
+
+- [Flink 官方中文文档](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/) 首页 → Learn Flink 概览
+- [数据流编程模型](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/concepts/overview/)：分层 API、流与批的关系
+- [项目配置 / 依赖](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/dev/configuration/overview/)：Maven 坐标与作用域
+
+**下午动手**
+
+- 装 JDK 17（`brew install openjdk@17`），跑 `./run.sh mvn -B compile`
+- 跑通 `w1.WordCountJob`，看到 `(flink,2)` 这类输出
+
+**对照 / 日记**
+
+- 记下**两个坑**，它们会让你卡住几小时：
+  1. **JDK 25 跑不了 Flink**——本机 `JAVA_HOME` 默认指向 25，报错信息完全看不出根因
+  2. **`exec:java` 会报 `Could not deserialize stream node`**——它在 Maven 自己的 JVM 里跑，
+     类加载器和 Flink 反序列化算子时用的不是同一套。改用 `exec:exec`（fork 新 JVM）
+- DoD：能解释「为什么本地 IDE 跑 `main()` 就能起一个 Flink 作业」——
+  `getExecutionEnvironment()` 在普通 Java 程序里会返回本地执行环境，自动拉起 MiniCluster
+
+## D3–D4 · 作业运行模型
+
+**上午精读**
+
+- [Flink 架构](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/concepts/flink-architecture/)：
+  JobManager / TaskManager / Slot / 并行度
+- [执行模式 BATCH](https://nightlies.apache.org/flink/flink-docs-release-2.3/zh/docs/dev/datastream/execution_mode/)：
+  DataSet API 移除后，批处理怎么写
+
+**下午动手**
+
+- 跑 `w1.ParallelismJob`，观察 `subtask-N` 与 `sensorId` 的对应关系
+- 把 `KEY_BY` 改成 `false` 再跑一次，对比路由行为
+- 给 WordCount 加 `-Dexec.args` 切到 BATCH 模式，看输出差别
+
+**对照 / 日记**
+
+- 自问自答：**同一个 key 为什么永远落进同一个并行实例？**
+  （答不上就去看 `keyBy` 的哈希分区实现——这是 Keyed State 能免锁的前提）
+- 画出作业图：source → flatMap → keyBy → sum → sink，标注哪些算子会被**算子链**融合成一个 Task
+- DoD：能口头讲清 `main()` 里写的算子链，到运行时变成 JobGraph → ExecutionGraph → Task 的过程
+
+## D5–D6 · FLIP-27 新 Source 与并行度
+
+**上午精读**
+
+- [Sources（FLIP-27）](https://nightlies.apache.org/flink/flink-docs-release-2.3/docs/internals/sources/)：
+  为什么要把 Source 拆成 Split / Enumerator / Reader 三块
+- 回顾 [2.x 与 1.x 的破坏性差异清单](./how-to-learn.mdx#2x-与-1x-的破坏性差异清单)
+
+**下午动手**
+
+- 读 `common/SensorSource.java` 及其三个协作类，跑 `w1.CustomSourceJob`
+- 改并行度（2 → 4）和分片数（4 → 2），观察分配行为
+- **刻意试错**：把 `signalNoMoreSplits` 那一步注释掉再跑，看作业是不是挂住不退出
+
+**对照 / 日记**
+
+- 写五句话：旧的 `SourceFunction` 写法在哪些方面做不到新接口能做的事？
+  （提示：并行度扩展、checkpoint 一致性、分片重分配）
+- DoD：能解释「Kafka 源扩并行度时为什么能重新分配分区」
+
+:::tip[进入 Week 2 的前提]
+如果还说不清「水位线是什么、为什么需要它」，先别开始窗口——W2 全是建立在这一个概念上。
+:::
+
+## D7 · 缓冲与 Week 1 复盘
+
+- 补债：JDK / 依赖 / 日志任一块不稳则优先修
+- 自检：
+  - [ ] JDK 17 配好，`./run.sh mvn -B compile` 通过
+  - [ ] 三个 W1 例子都能跑出可见结果
+  - [ ] 能说出至少 4 条 2.x 的破坏性变更
+  - [ ] 能画清作业从 `main()` 到 TaskManager 的路径
+  - [ ] 手写过一遍 FLIP-27 的 Source，知道三件套各管什么
+
+下一周：[Week 2 · 时间语义与窗口](./week-2.mdx)
